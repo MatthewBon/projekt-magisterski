@@ -10,3 +10,4 @@ class Colors(Enum):
     ORANGE = (255, 165, 0)
     TURQUOISE = (64, 224, 208)
     GREY = (128, 128, 128)
+    LIME = (0, 255, 128)
