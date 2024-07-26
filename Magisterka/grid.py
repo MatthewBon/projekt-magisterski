@@ -1,4 +1,5 @@
 import random
+import time
 from colorama import Fore, init
 from enums.colors import Colors as colors
 from spot import Spot
@@ -8,12 +9,34 @@ from utils import calculate_blocks
 class Grid:
     def __init__(self, rows, gap, print_maze=False):
         self.rows = rows
-        self.grid_maze = [[Spot(y, x, gap, rows, colors.BLACK) for x in range(rows)] for y in range(rows)]
+
+        print(f"Initializing maze...")
+        time_start = time.time()
+        self.grid_maze = []
+        for y in range(rows):
+            row = []
+            for x in range(rows):
+                row.append(Spot(y, x, gap, rows, colors.BLACK))
+            self.grid_maze.append(row)
+            if y % 500 == 0:
+                print(f"Row {y} completed.")
+
+        print(f"Maze initialized in {round(time.time() - time_start, 3)}s\n"
+              f"Maze rows: {rows}x{rows}, Maze cells: {rows * rows}")
+
         self._start = (1, 1)
         self._end = (rows - 2, rows - 2)
 
+        print(f"Generating maze...")
+        time_start = time.time()
         self.start_spot, self.end_spot = self.generate_grid_maze()
+        print(f"Maze generated in {round(time.time() - time_start, 3)}s\n")
+
+        print(f"Updating neighbors...")
+        time_start = time.time()
         self.update_all_neighbors()
+        print(f"Neighbors updated in {round(time.time() - time_start, 3)}s\n")
+
         if print_maze:
             self.print_grid_maze_to_console()
 
@@ -25,8 +48,16 @@ class Grid:
 
         while counter < 10:
             counter += 1
+            print(f"\tCarving path...")
+            time_start = time.time()
             self.carve_path_from_start_to_end(self._start[0], self._start[1])
+            print(f"\tPath carved in {round(time.time() - time_start, 3)}s\n")
+
+            print(f"\tCarving additional paths...")
+            time_start = time.time()
             self.carve_additional_passages()
+            print(f"\tAdditional paths carved in {round(time.time() - time_start, 3)}s\n")
+
             self.grid_maze[self._start[0]][self._start[1]].make_start()
             self.grid_maze[self._end[0]][self._end[1]].make_end()
             if self.ensure_path_to_end((self._start[0], self._start[1]), (self._end[0], self._end[1])):
@@ -76,7 +107,12 @@ class Grid:
 
         barrier_counter = calculate_blocks(self.grid_maze, colors.BLACK)
         barrier_without_frame = barrier_counter - (len(self.grid_maze) * 4)
-        new_path_counter = int(barrier_without_frame * 0.01) + 2
+        new_path_counter = int(barrier_without_frame * 0.001) + 2
+        if new_path_counter > 1000:
+            new_path_counter = 100
+        elif new_path_counter == 0:
+            new_path_counter = 1
+
         barrier_positions = []
         for row in self.grid_maze:
             for spot in row:
@@ -90,11 +126,15 @@ class Grid:
             self.grid_maze[x][y].make_open()
 
     def ensure_path_to_end(self, start, end):
+        print(f"\tVerifying path...")
+        time_start = time.time()
         stack = [start]
         visited = set()
         while stack:
             current = stack.pop()
             if current == end:
+                print(f"\tPaths verified in {round(time.time() - time_start, 3)}s\n")
+
                 return True
             if current not in visited:
                 visited.add(current)

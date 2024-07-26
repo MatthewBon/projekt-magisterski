@@ -15,7 +15,7 @@ def run_algorithm(algorithm, grid, start, end):
 
 
 def main(display_mode=False):
-    rows = 3870
+    rows = 7000
     if not rows % 2:
         rows += 1
     gap = WIDTH // rows
@@ -33,8 +33,9 @@ def main(display_mode=False):
     else:
         total_cells = calculate_blocks(grid_maze, colors.WHITE)
         for name, algorithm in algorithms.items():
+            print(f"Current algorythm name: {name}")
             execution_time, trace_len, searched = run_algorithm(algorithm, grid_maze, start, end)
-            print(f"Algorithm name: {name}, Execution_time: {execution_time},"
+            print(f"\tExecution_time: {execution_time},"
                   f" Trace length: {trace_len}, Searched open cells: {searched},"
                   f" Total open cells: {total_cells}")
 
