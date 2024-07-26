@@ -15,7 +15,7 @@ def run_algorithm(algorithm, grid, start, end):
 
 
 def main(display_mode=False):
-    rows = 7000
+    rows = 4000
     if not rows % 2:
         rows += 1
     gap = WIDTH // rows
@@ -35,9 +35,9 @@ def main(display_mode=False):
         for name, algorithm in algorithms.items():
             print(f"Current algorythm name: {name}")
             execution_time, trace_len, searched = run_algorithm(algorithm, grid_maze, start, end)
-            print(f"\tExecution_time: {execution_time},"
-                  f" Trace length: {trace_len}, Searched open cells: {searched},"
-                  f" Total open cells: {total_cells}")
+            print(f"\tExecution_time: {execution_time} s,"
+                  f" Trace length: {trace_len} cells, "
+                  f"Searched cells percentage: {round(((searched / total_cells) * 100), 2)} %")
 
 
 def window_handler(grid, width, start, end):

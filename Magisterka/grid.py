@@ -1,4 +1,5 @@
 import random
+import sys
 import time
 from colorama import Fore, init
 from enums.colors import Colors as colors
@@ -9,34 +10,17 @@ from utils import calculate_blocks
 class Grid:
     def __init__(self, rows, gap, print_maze=False):
         self.rows = rows
-
-        print(f"Initializing maze...")
-        time_start = time.time()
-        self.grid_maze = []
-        for y in range(rows):
-            row = []
-            for x in range(rows):
-                row.append(Spot(y, x, gap, rows, colors.BLACK))
-            self.grid_maze.append(row)
-            if y % 500 == 0:
-                print(f"Row {y} completed.")
-
-        print(f"Maze initialized in {round(time.time() - time_start, 3)}s\n"
-              f"Maze rows: {rows}x{rows}, Maze cells: {rows * rows}")
-
         self._start = (1, 1)
         self._end = (rows - 2, rows - 2)
 
         print(f"Generating maze...")
         time_start = time.time()
+
+        self.grid_maze = [[Spot(y, x, gap, rows, colors.BLACK) for x in range(rows)] for y in range(rows)]
         self.start_spot, self.end_spot = self.generate_grid_maze()
-        print(f"Maze generated in {round(time.time() - time_start, 3)}s\n")
-
-        print(f"Updating neighbors...")
-        time_start = time.time()
         self.update_all_neighbors()
-        print(f"Neighbors updated in {round(time.time() - time_start, 3)}s\n")
 
+        print(f"Maze generated in {round(time.time() - time_start, 3)}s\n")
         if print_maze:
             self.print_grid_maze_to_console()
 
@@ -105,14 +89,6 @@ class Grid:
                 return True
             return False
 
-        barrier_counter = calculate_blocks(self.grid_maze, colors.BLACK)
-        barrier_without_frame = barrier_counter - (len(self.grid_maze) * 4)
-        new_path_counter = int(barrier_without_frame * 0.001) + 2
-        if new_path_counter > 1000:
-            new_path_counter = 100
-        elif new_path_counter == 0:
-            new_path_counter = 1
-
         barrier_positions = []
         for row in self.grid_maze:
             for spot in row:
@@ -120,10 +96,17 @@ class Grid:
                     if self.is_within_bounds(spot.row, spot.col) and has_two_barrier_neighbors_in_line(spot):
                         barrier_positions.append((spot.row, spot.col))
 
-        selected_positions = random.sample(barrier_positions, new_path_counter)
+        if len(barrier_positions) != 0:
+            new_path_counter = int(len(barrier_positions) * 0.0001)
+            print(f"\t\t{new_path_counter}")
+            if new_path_counter > 1000:
+                new_path_counter = 100
+            elif new_path_counter == 0:
+                new_path_counter = 1
 
-        for x, y in selected_positions:
-            self.grid_maze[x][y].make_open()
+            selected_positions = random.sample(barrier_positions, new_path_counter)
+            for x, y in selected_positions:
+                self.grid_maze[x][y].make_open()
 
     def ensure_path_to_end(self, start, end):
         print(f"\tVerifying path...")
@@ -149,9 +132,12 @@ class Grid:
         return False
 
     def update_all_neighbors(self):
+        print(f"\tUpdating neighbors...")
+        time_start = time.time()
         for row in self.grid_maze:
             for spot in row:
                 spot.update_neighbors(self.grid_maze)
+        print(f"\tNeighbors updated in {round(time.time() - time_start, 3)}s\n")
 
     def print_grid_maze_to_console(self):
         init()
@@ -177,8 +163,10 @@ class Grid:
 def main(width, rows):
     if not rows % 2:
         rows += 1
-    Grid(rows, width)
+    Grid(rows, width, True)
+    print('')
 
 
 if __name__ == "__main__":
-    main(200, 1000)
+    main(200, 30)
+    print('')
