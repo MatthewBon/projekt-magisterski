@@ -1,5 +1,7 @@
 import random
 import time
+
+import numpy as np
 from colorama import Fore, init
 from enums.colors import Colors as colors
 from spot import Spot
@@ -8,17 +10,16 @@ from utils import is_within_bounds
 
 class Grid:
     def __init__(self, rows, gap, print_maze=False):
+        self.grid_maze = None
         self.end_spot = None
         self.start_spot = None
-        init()
+        self.gap = gap
         self.rows = rows
         self.print_flag = print_maze
 
         print(f"Maze size: {rows} x {rows}, {rows * rows} cells")
         print(f"Generating maze...")
         time_start = time.time()
-
-        self.grid_maze = [[Spot(y, x, gap, rows, colors.BLACK) for x in range(rows)] for y in range(rows)]
         self.generate_grid_maze()
         print(f"Maze generated in {round(time.time() - time_start, 3)}s\n")
         if self.print_flag:
@@ -28,67 +29,58 @@ class Grid:
         return '\n'.join([''.join([str(spot) for spot in row]) for row in self.grid_maze])
 
     def generate_grid_maze(self):
-        counter = 0
-        start_spot, end_spot = [], []
-        while counter < 10:
-            counter += 1
-            print(f"\tCarving path...")
-            time_start = time.time()
-            self.carve_path()
-            print(f"\tPath carved in {round(time.time() - time_start, 3)}s\n")
+        print(f"\tCarving path...")
+        time_start = time.time()
+        self.carve_path()
+        print(f"\tPath carved in {round(time.time() - time_start, 3)}s\n")
 
-            print(f"\tCarving additional paths...")
-            time_start = time.time()
-            self.carve_additional_passages()
-            print(f"\tAdditional paths carved in {round(time.time() - time_start, 3)}s\n")
-            self.start_spot, self.end_spot = self.select_start_end_spots()
-            print(f"\tStart spot: {start_spot}, end spot: {end_spot}\n")
-            self.start_spot.make_start()
-            self.end_spot.make_end()
+        print(f"\tCarving additional paths...")
+        time_start = time.time()
+        self.carve_additional_passages()
+        print(f"\tAdditional paths carved in {round(time.time() - time_start, 3)}s\n")
 
-            if self.ensure_path_to_end(self.start_spot, self.end_spot):
-                break
-            counter += 1
+        self.start_spot, self.end_spot = self.select_start_end_spots()
+        print(f"\tStart spot: {self.start_spot}, End spot: {self.end_spot}\n")
+        self.start_spot.make_start()
+        self.end_spot.make_end()
+
+        self.ensure_path_to_end(self.start_spot, self.end_spot)
         self.update_all_neighbors()
         self.add_special_spots()
 
-    def carve_path_from_start_recursively(self, cx, cy):
-        directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
-        random.shuffle(directions)
-        for dx, dy in directions:
-            nx, ny = cx + dx * 2, cy + dy * 2
-            if is_within_bounds(nx, ny, self.rows) and self.grid_maze[nx][ny].color == colors.BLACK:
-                self.grid_maze[cx][cy].make_open()
-                self.grid_maze[cx + dx][cy + dy].make_open()
-                self.grid_maze[nx][ny].make_open()
-                self.carve_path_from_start_recursively(nx, ny)
-
     def carve_path(self):
-        stack = [(1, 1)]
-        while stack:
-            cx, cy = stack.pop()
-            directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+        # Create a grid filled with walls
+        dim = self.rows // 2
+        self.grid_maze = [[Spot(y, x, self.gap, 2*dim+1, colors.BLACK) for x in range(2*dim+1)] for y in range(2*dim+1)]
+        x, y = (0, 0)
+        print(f"Maze size: {len(self.grid_maze)}")
+        # Initialize the stack with the starting point
+        stack = [(x, y)]
+        while len(stack) > 0:
+            x, y = stack[-1]
+
+            # Define possible directions
+            directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
             random.shuffle(directions)
+
             for dx, dy in directions:
-                nx, ny = cx + dx * 2, cy + dy * 2
-                if is_within_bounds(nx, ny, self.rows) and self.grid_maze[nx][ny].color == colors.BLACK:
-                    self.grid_maze[cx][cy].make_open()
-                    self.grid_maze[cx + dx][cy + dy].make_open()
-                    self.grid_maze[nx][ny].make_open()
+                nx, ny = x + dx, y + dy
+                if (0 <= nx < dim) and (0 <= ny < dim) and self.grid_maze[2 * nx + 1][2 * ny + 1].is_barrier():
+                    self.grid_maze[2 * nx + 1][2 * ny + 1].make_open()
+                    self.grid_maze[2 * x + 1 + dx][2 * y + 1 + dy].make_open()
                     stack.append((nx, ny))
+                    break
+            else:
+                stack.pop()
 
     def carve_additional_passages(self):
         def has_two_barrier_neighbors_in_line(spot_):
-            counter = 0
             spot_.update_barrier_neighbors(self.grid_maze)
-            for neighbor in spot_.neighbors:
-                if neighbor.is_barrier() and is_within_bounds(neighbor.row, neighbor.col, self.rows):
-                    counter += 1
-            if counter != 2:
+            if len(spot_.neighbors) != 2:
                 return False
 
             neighbors_pos = [neighbor.get_pos() for neighbor in spot_.neighbors]
-            if neighbors_pos[0][0] == neighbors_pos[1][0] or neighbors_pos[0][0] == neighbors_pos[0][1]:
+            if neighbors_pos[0][0] == neighbors_pos[1][0] or neighbors_pos[0][1] == neighbors_pos[1][1]:
                 return True
             return False
 
@@ -100,12 +92,8 @@ class Grid:
                         barrier_positions.append((spot.row, spot.col))
 
         if len(barrier_positions) != 0:
-            new_path_counter = int(len(barrier_positions) * 0.15)
-            print(f"\t\t{len(barrier_positions)}")
-            print(f"\t\t{new_path_counter}")
-            if new_path_counter > 1000:
-                new_path_counter = 100
-            elif new_path_counter == 0:
+            new_path_counter = int(len(barrier_positions) * 0.01)
+            if new_path_counter == 0:
                 new_path_counter = 1
 
             selected_positions = random.sample(barrier_positions, new_path_counter)
@@ -113,21 +101,43 @@ class Grid:
                 self.grid_maze[x][y].make_open()
 
     def select_start_end_spots(self):
-        grid = [(y, x) for x in range(1, self.rows - 1) for y in range(1, self.rows - 1)]
-        start_x, start_y = 0, 0
-        end_x, end_y = 0, 0
-        while True:
-            if self.grid_maze[start_x][start_y].is_barrier():
-                start_x, start_y = random.sample(grid, 1)[0]
-                grid.remove((start_x, start_y))
+        def select_spot(quadrant):
+            grid = [(y, x) for x in range(quadrant[0], quadrant[1] - 1) for y in range(quadrant[2], quadrant[3] - 1)]
+            x, y = 0, 0
+            while True:
+                if self.grid_maze[x][y].is_barrier():
+                    x, y = random.sample(grid, 1)[0]
+                    grid.remove((x, y))
+                if not self.grid_maze[x][y].is_barrier():
+                    return self.grid_maze[x][y]
 
-            if self.grid_maze[end_x][end_y].is_barrier():
-                end_x, end_y = random.sample(grid, 1)[0]
-                grid.remove((end_x, end_y))
+        quadrants = [
+            (1, self.rows // 2, 1, self.rows // 2),  # Top-left
+            (1, self.rows // 2, self.rows // 2, self.rows - 2),  # Top-right
+            (self.rows // 2, self.rows - 2, 1, self.rows // 2),  # Bottom-left
+            (self.rows // 2, self.rows - 2, self.rows // 2, self.rows - 2)  # Bottom-right
+        ]
+        opposite_quadrants = {
+            0: 3,  # Top-left <-> Bottom-right
+            1: 2,  # Top-right <-> Bottom-left
+            2: 1,  # Bottom-left <-> Top-right
+            3: 0,  # Bottom-right <-> Top-left
+        }
 
-            if not self.grid_maze[start_x][start_y].is_barrier() and not self.grid_maze[end_x][end_y].is_barrier():
-                break
-        return self.grid_maze[start_x][start_y], self.grid_maze[end_x][end_y]
+        # Select start spot from a random quadrant
+        start_quadrant = random.choice(quadrants)
+        start_quadrant_index = quadrants.index(start_quadrant)
+        start_spot = select_spot(start_quadrant)
+
+        # Ensure end spot is in an opposite quadrant
+        opposite_quadrant_index = opposite_quadrants[start_quadrant_index]
+        end_quadrant = quadrants[opposite_quadrant_index]
+        end_spot = select_spot(end_quadrant)
+
+        start_spot.make_start()
+        end_spot.make_end()
+
+        return start_spot, end_spot
 
     def add_special_spots(self):
         def bfs_change_weight(s_spot: Spot, new_weight: int, r_size: int):
@@ -162,14 +172,17 @@ class Grid:
         ]
 
         if self.rows <= 50:
-            region_size = 15
+            region_amount = 1
         elif self.rows <= 200:
-            region_size = 50
+            region_amount = 4
+        elif self.rows <= 400:
+            region_amount = 8
         else:
-            region_size = 150
+            region_amount = 15
+        region_size = self.rows // 2
 
         # Add spots with 10x weight in each quadrant
-        for _ in range(2):
+        for _ in range(region_amount):
             for q in quadrants:
                 random_x = random.randint(q[0], q[1] - 1)
                 random_y = random.randint(q[2], q[3] - 1)
@@ -188,7 +201,7 @@ class Grid:
                 end_quadrant = (self.rows // 2, self.rows - 2, 1, self.rows // 2)  # Bottom-left
             else:
                 end_quadrant = (self.rows // 2, self.rows - 2, self.rows // 2, self.rows - 2)  # Bottom-right
-        for _ in range(2):
+        for _ in range(region_amount):
             random_x = random.randint(end_quadrant[0], end_quadrant[1] - 1)
             random_y = random.randint(end_quadrant[2], end_quadrant[3] - 1)
             start_spot = self.grid_maze[random_x][random_y]
@@ -212,7 +225,7 @@ class Grid:
                 for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
                     nx, ny = cx + dx, cy + dy
                     if (is_within_bounds(nx, ny, self.rows) and
-                            self.grid_maze[nx][ny].color in [colors.WHITE_1, colors.PURPLE]):
+                            self.grid_maze[nx][ny].color in [colors.WHITE_1, colors.WHITE_10, colors.WHITE_25, colors.PURPLE]):
                         stack.append((nx, ny))
 
         print('no trace to end')
@@ -227,8 +240,9 @@ class Grid:
         print(f"\tNeighbors updated in {round(time.time() - time_start, 3)}s\n")
 
     def print_grid_maze_to_console(self):
-        self.start_spot.make_start()
-        self.end_spot.make_end()
+        init()
+        # self.start_spot.make_start()
+        # self.end_spot.make_end()
         for row in self.grid_maze:
             for spot in row:
                 if spot.color == colors.BLACK:
@@ -244,14 +258,3 @@ class Grid:
                 elif spot.color == colors.RED:
                     print(Fore.CYAN + 'v ', end="")
             print(Fore.RESET)  # Reset the color after each line
-
-
-def main(width, rows):
-    if not rows % 2:
-        rows += 1
-    grid = Grid(rows, width, True)
-
-
-if __name__ == "__main__":
-    main(200, 50)
-    print('')

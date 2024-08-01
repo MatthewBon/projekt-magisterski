@@ -8,11 +8,14 @@ def heuristic(p1, p2):
     return abs(x1 - x2) + abs(y1 - y2)
 
 
-def reconstruct_path(path, start_spot, end_spot, draw_method, win, color=None):
+def reconstruct_path(path, grid, start_spot, end_spot, draw_updates, win, color=None, window_mode=True):
     for spot in path:
         if spot != start_spot and spot != end_spot:
             spot.make_path(color)
-            draw_method(win, spot)
+            if draw_updates and window_mode:
+                draw_spot(win, spot)
+    if not draw_updates and window_mode:
+        draw_grid(win, grid)
 
 
 def clear_grid_after_algorith(visited_spots, start_spot, end_spot):
@@ -33,12 +36,14 @@ def draw_spot(win, spot):
     pygame.display.update()
 
 
-def reset_grid(win, grid):
+def reset_grid(win, grid, window_mode=True):
     for row in grid:
         for spot in row:
             spot.reset()
-            spot.draw(win)
-    pygame.display.update()
+            if window_mode:
+                spot.draw(win)
+    if window_mode:
+        pygame.display.update()
 
 
 def calculate_blocks(grid, color=colors.TURQUOISE):
