@@ -1,5 +1,7 @@
 import random
 import time
+from typing import Tuple
+from logger import ProjectLogger
 from algorithms import a_star
 from colorama import Fore, init
 from enums.colors import Colors as colors
@@ -8,53 +10,69 @@ from spot import Spot
 from utils import is_within_bounds, reset_grid, manhattan_heuristic
 
 
-class Grid:
-    def __init__(self, rows, gap, print_maze=False):
+class Grid(ProjectLogger):
+    def __init__(self, rows: int, gap: int, print_maze: bool = False):
+        """
+        Initialize the Grid.
+
+        Args:
+            rows (int): Number of rows in the grid.
+            gap (int): Gap between the spots.
+            print_maze (bool): Flag to print the maze to console.
+        """
+        super().__init__()
         init()
-        self.grid_maze = None
+        self.grid_maze = []
         self.end_spot = None
         self.start_spot = None
         self.gap = gap
         self.rows = rows
         self.print_flag = print_maze
 
-        print(f"Maze size: {rows} x {rows}, {rows * rows} cells")
-        print(f"Generating maze...")
+        self.logger.info(f"Generating {rows}x{rows} maze...")
         time_start = time.time()
         self.generate_grid_maze()
-        print(f"Maze generated in {round(time.time() - time_start, 4)}s\n")
+        self.logger.info(f"Maze generated in {round(time.time() - time_start, 4)}s\n")
         if self.print_flag:
             self.print_grid_maze_to_console()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """
+        Return a string representation of the grid maze.
+
+        Returns:
+            str: String representation of the grid maze.
+        """
         return '\n'.join([''.join([str(spot) for spot in row]) for row in self.grid_maze])
 
     def generate_grid_maze(self):
-        print(f"\tCarving path...")
+        """
+        Generate the grid maze with paths and special spots.
+        """
+        self.logger.debug("Carving path...")
         time_start = time.time()
         self.carve_path()
-        print(f"\tPath carved in {round(time.time() - time_start, 4)}s\n")
+        self.logger.debug(f"Path carved in {round(time.time() - time_start, 4)}s\n")
 
-        print(f"\tCarving additional paths...")
+        self.logger.debug("Carving additional paths...")
         time_start = time.time()
         self.carve_additional_passages()
-        print(f"\tAdditional paths carved in {round(time.time() - time_start, 4)}s\n")
+        self.logger.debug(f"Additional paths carved in {round(time.time() - time_start, 4)}s\n")
 
         self.select_start_end_spots()
-        print(f"\tStart spot: {self.start_spot}, End spot: {self.end_spot}\n")
+        self.logger.debug(f"Start spot: {self.start_spot}, End spot: {self.end_spot}\n")
 
         if not self.ensure_path_to_end():
             raise Exception("Maze generated incorrectly!")
         self.add_special_spots()
 
     def carve_path(self):
-        # Create a grid filled with walls
+        """
+        Carve the main path in the grid maze using a depth-first search approach.
+        """
         dim = self.rows // 2
-        print(2*dim+1)
         self.grid_maze = [[Spot(y, x, self.gap, 2*dim+1, colors.BLACK) for x in range(2*dim+1)] for y in range(2*dim+1)]
         x, y = (0, 0)
-        print(f"Maze size: {len(self.grid_maze)}")
-        # Initialize the stack with the starting point
         stack = [(x, y)]
         while len(stack) > 0:
             x, y = stack[-1]
@@ -74,13 +92,18 @@ class Grid:
                 stack.pop()
 
     def carve_additional_passages(self):
-        def has_two_barrier_neighbors_in_line(spot_):
+        """
+        Carve additional passages in the grid maze to ensure more complex paths.
+        """
+        def check_neighbors(spot_: Spot) -> bool:
             spot_.update_barrier_neighbors(self.grid_maze)
-            if len(spot_.neighbors) != 2:
+            if len(spot_.neighbors) > 2:
                 return False
-
-            neighbors_pos = [neighbor.get_pos() for neighbor in spot_.neighbors]
-            if neighbors_pos[0][0] == neighbors_pos[1][0] or neighbors_pos[0][1] == neighbors_pos[1][1]:
+            elif len(spot_.neighbors) == 2:
+                neighbors_pos = [neighbor.get_pos() for neighbor in spot_.neighbors]
+                if neighbors_pos[0][0] == neighbors_pos[1][0] or neighbors_pos[0][1] == neighbors_pos[1][1]:
+                    return True
+            elif len(spot_.neighbors) == 1:
                 return True
             return False
 
@@ -88,7 +111,7 @@ class Grid:
         for row in self.grid_maze:
             for spot in row:
                 if spot.is_barrier():
-                    if is_within_bounds(spot.row, spot.col, self.rows) and has_two_barrier_neighbors_in_line(spot):
+                    if is_within_bounds(spot.row, spot.col, self.rows) and check_neighbors(spot):
                         barrier_positions.append((spot.row, spot.col))
 
         if len(barrier_positions) != 0:
@@ -101,7 +124,10 @@ class Grid:
                 self.grid_maze[x][y].make_open()
 
     def select_start_end_spots(self):
-        def select_spot(quadrant):
+        """
+        Select the start and end spots for the maze ensuring they are in opposite quadrants.
+        """
+        def select_spot(quadrant: Tuple[int, int, int, int]) -> Spot:
             grid = [(y, x) for x in range(quadrant[0], quadrant[1] - 1) for y in range(quadrant[2], quadrant[3] - 1)]
             x, y = 0, 0
             while True:
@@ -139,6 +165,9 @@ class Grid:
         self.update_all_neighbors()
 
     def add_special_spots(self):
+        """
+        Add special spots with different weights to the maze.
+        """
         def bfs_change_weight(s_spot: Spot, new_weight: int, r_size: int):
             queue = [s_spot]
             visited = set()
@@ -171,14 +200,7 @@ class Grid:
             (self.rows // 2, self.rows - 2, self.rows // 2, self.rows - 2)  # Bottom-right
         ]
 
-        if self.rows <= 50:
-            region_amount = 2
-        elif self.rows <= 200:
-            region_amount = 5
-        elif self.rows <= 400:
-            region_amount = 11
-        else:
-            region_amount = 23
+        region_amount = self.rows // 25
         region_size = self.rows // 2
 
         # Add spots with 10x weight in each quadrant
@@ -207,26 +229,38 @@ class Grid:
             start_spot = self.grid_maze[random_x][random_y]
             bfs_change_weight(start_spot, spot_weight.HEAVY.value, region_size // 2)
 
-    def ensure_path_to_end(self):
-        print(f"\tVerifying path...")
+    def ensure_path_to_end(self) -> bool:
+        """
+        Ensure there is a valid path from the start spot to the end spot.
+
+        Returns:
+            bool: True if a valid path exists, False otherwise.
+        """
+        self.logger.debug("Verifying path...")
         path, _ = a_star(self.grid_maze, self.start_spot, self.end_spot, window_mode=False,
                          heuristic_method=manhattan_heuristic)
         if not len(path) > 0:
-            print('no trace to end')
+            self.logger.error('No trace to end')
             self.print_grid_maze_to_console()
             return False
         reset_grid(self.grid_maze, window_mode=False)
         return True
 
     def update_all_neighbors(self):
-        print(f"\tUpdating neighbors...")
+        """
+        Update neighbors for all spots in the grid maze.
+        """
+        self.logger.debug("Updating neighbors...")
         time_start = time.time()
         for row in self.grid_maze:
             for spot in row:
                 spot.update_open_neighbors(self.grid_maze)
-        print(f"\tNeighbors updated in {round(time.time() - time_start, 4)}s\n")
+        self.logger.debug(f"Neighbors updated in {round(time.time() - time_start, 4)}s\n")
 
     def print_grid_maze_to_console(self):
+        """
+        Print the grid maze to the console.
+        """
         for row in self.grid_maze:
             for spot in row:
                 if spot.color == colors.BLACK:
