@@ -3,8 +3,8 @@ from enum import Enum
 
 class Colors(Enum):
     WHITE_1 = (230, 230, 230)
-    WHITE_10 = (170, 170, 170)
-    WHITE_25 = (100, 100, 100)
+    WHITE_5 = (170, 170, 170)
+    WHITE_15 = (100, 100, 100)
     BLACK = (35, 35, 35)
     RED = (255, 0, 0)
     GREEN = (0, 255, 0)

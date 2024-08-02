@@ -1,9 +1,10 @@
 import pygame
 from enums.colors import Colors as colors
+from enums.weight import Weight as spot_weight
 
 
 class Spot:
-    def __init__(self, row, col, width, total_rows, color, spot_value=1):
+    def __init__(self, row, col, width, total_rows, color, spot_value=spot_weight.DEFAULT.value):
         self.row = row
         self.col = col
         self.x = row * width
@@ -39,12 +40,12 @@ class Spot:
         return self.color in [colors.TURQUOISE, colors.LIME]
 
     def make_open(self):
-        if self.spot_value == 1:
+        if self.spot_value == spot_weight.DEFAULT.value:
             self.color = colors.WHITE_1
-        elif self.spot_value == 10:
-            self.color = colors.WHITE_10
-        elif self.spot_value == 25:
-            self.color = colors.WHITE_25
+        elif self.spot_value == spot_weight.LIGHT.value:
+            self.color = colors.WHITE_5
+        elif self.spot_value == spot_weight.HEAVY.value:
+            self.color = colors.WHITE_15
 
     def make_closed(self):
         self.color = colors.RED
@@ -71,7 +72,7 @@ class Spot:
     def draw(self, win):
         pygame.draw.rect(win, self.color.value, (self.x, self.y, self.width, self.width))
 
-    def update_neighbors(self, grid):
+    def update_open_neighbors(self, grid):
         self.neighbors = []
         if self.row > 0 and not grid[self.row - 1][self.col].is_barrier():  # UP
             self.neighbors.append(grid[self.row - 1][self.col])

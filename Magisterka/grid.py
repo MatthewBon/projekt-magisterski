@@ -1,15 +1,16 @@
 import random
 import time
-
-import numpy as np
+from algorithms import a_star
 from colorama import Fore, init
 from enums.colors import Colors as colors
+from enums.weight import Weight as spot_weight
 from spot import Spot
-from utils import is_within_bounds
+from utils import is_within_bounds, reset_grid, manhattan_heuristic
 
 
 class Grid:
     def __init__(self, rows, gap, print_maze=False):
+        init()
         self.grid_maze = None
         self.end_spot = None
         self.start_spot = None
@@ -21,7 +22,7 @@ class Grid:
         print(f"Generating maze...")
         time_start = time.time()
         self.generate_grid_maze()
-        print(f"Maze generated in {round(time.time() - time_start, 3)}s\n")
+        print(f"Maze generated in {round(time.time() - time_start, 4)}s\n")
         if self.print_flag:
             self.print_grid_maze_to_console()
 
@@ -32,25 +33,24 @@ class Grid:
         print(f"\tCarving path...")
         time_start = time.time()
         self.carve_path()
-        print(f"\tPath carved in {round(time.time() - time_start, 3)}s\n")
+        print(f"\tPath carved in {round(time.time() - time_start, 4)}s\n")
 
         print(f"\tCarving additional paths...")
         time_start = time.time()
         self.carve_additional_passages()
-        print(f"\tAdditional paths carved in {round(time.time() - time_start, 3)}s\n")
+        print(f"\tAdditional paths carved in {round(time.time() - time_start, 4)}s\n")
 
-        self.start_spot, self.end_spot = self.select_start_end_spots()
+        self.select_start_end_spots()
         print(f"\tStart spot: {self.start_spot}, End spot: {self.end_spot}\n")
-        self.start_spot.make_start()
-        self.end_spot.make_end()
 
-        self.ensure_path_to_end(self.start_spot, self.end_spot)
-        self.update_all_neighbors()
+        if not self.ensure_path_to_end():
+            raise Exception("Maze generated incorrectly!")
         self.add_special_spots()
 
     def carve_path(self):
         # Create a grid filled with walls
         dim = self.rows // 2
+        print(2*dim+1)
         self.grid_maze = [[Spot(y, x, self.gap, 2*dim+1, colors.BLACK) for x in range(2*dim+1)] for y in range(2*dim+1)]
         x, y = (0, 0)
         print(f"Maze size: {len(self.grid_maze)}")
@@ -92,7 +92,7 @@ class Grid:
                         barrier_positions.append((spot.row, spot.col))
 
         if len(barrier_positions) != 0:
-            new_path_counter = int(len(barrier_positions) * 0.01)
+            new_path_counter = int(len(barrier_positions) * 0.20)
             if new_path_counter == 0:
                 new_path_counter = 1
 
@@ -127,17 +127,16 @@ class Grid:
         # Select start spot from a random quadrant
         start_quadrant = random.choice(quadrants)
         start_quadrant_index = quadrants.index(start_quadrant)
-        start_spot = select_spot(start_quadrant)
+        self.start_spot = select_spot(start_quadrant)
 
         # Ensure end spot is in an opposite quadrant
         opposite_quadrant_index = opposite_quadrants[start_quadrant_index]
         end_quadrant = quadrants[opposite_quadrant_index]
-        end_spot = select_spot(end_quadrant)
+        self.end_spot = select_spot(end_quadrant)
 
-        start_spot.make_start()
-        end_spot.make_end()
-
-        return start_spot, end_spot
+        self.start_spot.make_start()
+        self.end_spot.make_end()
+        self.update_all_neighbors()
 
     def add_special_spots(self):
         def bfs_change_weight(s_spot: Spot, new_weight: int, r_size: int):
@@ -153,7 +152,8 @@ class Grid:
 
                 if (current_spot.spot_value == 1
                         and current_spot != self.start_spot
-                        and current_spot != self.end_spot):
+                        and current_spot != self.end_spot
+                        and not current_spot.is_barrier()):
                     current_spot.spot_value = new_weight
                     current_spot.make_open()
                     counter += 1
@@ -172,13 +172,13 @@ class Grid:
         ]
 
         if self.rows <= 50:
-            region_amount = 1
+            region_amount = 2
         elif self.rows <= 200:
-            region_amount = 4
+            region_amount = 5
         elif self.rows <= 400:
-            region_amount = 8
+            region_amount = 11
         else:
-            region_amount = 15
+            region_amount = 23
         region_size = self.rows // 2
 
         # Add spots with 10x weight in each quadrant
@@ -187,7 +187,7 @@ class Grid:
                 random_x = random.randint(q[0], q[1] - 1)
                 random_y = random.randint(q[2], q[3] - 1)
                 start_spot = self.grid_maze[random_x][random_y]
-                bfs_change_weight(start_spot, 10, region_size)
+                bfs_change_weight(start_spot, spot_weight.LIGHT.value, region_size)
 
         # Determine the quadrant of the end spot
         end_row, end_col = self.end_spot.get_pos()
@@ -205,56 +205,40 @@ class Grid:
             random_x = random.randint(end_quadrant[0], end_quadrant[1] - 1)
             random_y = random.randint(end_quadrant[2], end_quadrant[3] - 1)
             start_spot = self.grid_maze[random_x][random_y]
-            bfs_change_weight(start_spot, 25, region_size // 2)
-        self.update_all_neighbors()
+            bfs_change_weight(start_spot, spot_weight.HEAVY.value, region_size // 2)
 
-    def ensure_path_to_end(self, start, end):
+    def ensure_path_to_end(self):
         print(f"\tVerifying path...")
-        time_start = time.time()
-        stack = [start.get_pos()]
-        visited = set()
-        while stack:
-            current = stack.pop()
-            if current == end.get_pos():
-                print(f"\tPaths verified in {round(time.time() - time_start, 3)}s\n")
-
-                return True
-            if current not in visited:
-                visited.add(current)
-                cx, cy = current
-                for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
-                    nx, ny = cx + dx, cy + dy
-                    if (is_within_bounds(nx, ny, self.rows) and
-                            self.grid_maze[nx][ny].color in [colors.WHITE_1, colors.WHITE_10, colors.WHITE_25, colors.PURPLE]):
-                        stack.append((nx, ny))
-
-        print('no trace to end')
-        return False
+        path, _ = a_star(self.grid_maze, self.start_spot, self.end_spot, window_mode=False,
+                         heuristic_method=manhattan_heuristic)
+        if not len(path) > 0:
+            print('no trace to end')
+            self.print_grid_maze_to_console()
+            return False
+        reset_grid(self.grid_maze, window_mode=False)
+        return True
 
     def update_all_neighbors(self):
         print(f"\tUpdating neighbors...")
         time_start = time.time()
         for row in self.grid_maze:
             for spot in row:
-                spot.update_neighbors(self.grid_maze)
-        print(f"\tNeighbors updated in {round(time.time() - time_start, 3)}s\n")
+                spot.update_open_neighbors(self.grid_maze)
+        print(f"\tNeighbors updated in {round(time.time() - time_start, 4)}s\n")
 
     def print_grid_maze_to_console(self):
-        init()
-        # self.start_spot.make_start()
-        # self.end_spot.make_end()
         for row in self.grid_maze:
             for spot in row:
                 if spot.color == colors.BLACK:
                     print(Fore.RED + 'W ', end="")
-                elif spot.color in [colors.WHITE_1, colors.WHITE_10, colors.WHITE_25]:
+                elif spot.color in [colors.WHITE_1, colors.WHITE_15, colors.WHITE_15]:
                     print(Fore.WHITE + 'c ', end="")
                 elif spot.color == colors.ORANGE:
-                    print(Fore.YELLOW + 'S ', end="")
+                    print(Fore.CYAN + 'S ', end="")
                 elif spot.color == colors.PURPLE:
                     print(Fore.BLUE + 'E ', end="")
                 elif spot.color == colors.TURQUOISE:
                     print(Fore.GREEN + 'c ', end="")
                 elif spot.color == colors.RED:
-                    print(Fore.CYAN + 'v ', end="")
+                    print(Fore.YELLOW + 'v ', end="")
             print(Fore.RESET)  # Reset the color after each line

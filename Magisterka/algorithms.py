@@ -1,17 +1,17 @@
 import heapq
 from typing import List
 from spot import Spot
-from utils import heuristic, reconstruct_path, draw_spot
+from utils import manhattan_heuristic, reconstruct_path, draw_spot
 
 
-def a_star(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, win=None, draw_updates=True, window_mode=True):
+def a_star(grid_maze, start_spot, end_spot, win=None, draw_updates=True, window_mode=True, heuristic_method=None):
     pq = [(0, start_spot)]  # Priority queue of (f_score, Spot)
     visited = set()
     path = []
     g_score = {spot: float("inf") for row in grid_maze for spot in row}
     g_score[start_spot] = 0
     f_score = {spot: float("inf") for row in grid_maze for spot in row}
-    f_score[start_spot] = heuristic(start_spot.get_pos(), end_spot.get_pos())
+    f_score[start_spot] = manhattan_heuristic(start_spot, end_spot)
     came_from = {spot: None for row in grid_maze for spot in row}
 
     while pq:
@@ -33,25 +33,24 @@ def a_star(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, win=No
             return path, visited
 
         for neighbor in current_spot.neighbors:
-            if neighbor in visited:
-                continue
-            temp_g_score = g_score[current_spot] + current_spot.spot_value
+            if neighbor not in visited:
+                temp_g_score = g_score[current_spot] + neighbor.spot_value
+                if temp_g_score < g_score[neighbor]:
+                    came_from[neighbor] = current_spot
+                    g_score[neighbor] = temp_g_score
+                    f_score[neighbor] = temp_g_score + heuristic_method(neighbor, end_spot)
+                    heapq.heappush(pq, (f_score[neighbor], neighbor))
 
-            if temp_g_score < g_score[neighbor]:
-                came_from[neighbor] = current_spot
-                g_score[neighbor] = temp_g_score
-                f_score[neighbor] = temp_g_score + heuristic(neighbor.get_pos(), end_spot.get_pos())
-                heapq.heappush(pq, (f_score[neighbor], neighbor))
-
-                if neighbor != start_spot and neighbor != end_spot:
-                    neighbor.mark_next()
-                    if draw_updates and window_mode:
-                        draw_spot(win=win, spot=neighbor)
+                    if neighbor != start_spot and neighbor != end_spot:
+                        neighbor.mark_next()
+                        if draw_updates and window_mode:
+                            draw_spot(win=win, spot=neighbor)
 
     return [], visited
 
 
-def dijkstra(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, win=None, draw_updates=True, window_mode=True):
+def dijkstra(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, win=None, draw_updates=True,
+             window_mode=True, *args):
     pq = [(0, start_spot)]  # Priority queue of (distance, Spot)
     g_score = {spot: float('inf') for row in grid_maze for spot in row}
     g_score[start_spot] = 0
@@ -81,7 +80,7 @@ def dijkstra(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, win=
             return path, visited
 
         for neighbor in current_spot.neighbors:
-            distance = current_distance + current_spot.spot_value
+            distance = current_distance + neighbor.spot_value
             if distance < g_score[neighbor]:
                 g_score[neighbor] = distance
                 came_from[neighbor] = current_spot
@@ -95,109 +94,119 @@ def dijkstra(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, win=
 
 
 def limited_deep_dfs(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot,
-                     win=None, draw_updates=True, window_mode=True):
+                     win=None, draw_updates=True, window_mode=True, *args):
+    depth = 0
+    stack = [(start_spot, None, depth)]  # Stack of (Spot, predecessor, depth)
+    visited = set()
+    came_from = {spot: None for row in grid_maze for spot in row}
     path = []
-    stack = [(start_spot, path)]  # Stack of (Spot, path)
-    visited = set()
-    deep_limit = 100
-    ctr = 0
+    depth_limit = 100
     while stack:
-        if len(path) > deep_limit:
-            deep_limit += int(deep_limit * 0.2)
-            ctr += 1
-            current_spot, path = stack.pop(0)
+        if depth < depth_limit:
+            current_spot, prev, depth = stack.pop()
         else:
-            current_spot, path = stack.pop()
+            current_spot, prev, depth = stack.pop(0)
+            depth_limit += int(depth_limit * 0.1)
 
-        if current_spot in visited:
-            continue
-        visited.add(current_spot)
-        if current_spot != start_spot and current_spot != end_spot:
-            current_spot.make_closed()
-            if draw_updates and window_mode:
-                draw_spot(win=win, spot=current_spot)
-        # path = path + [current_spot]
+        if current_spot not in visited:
+            visited.add(current_spot)
+            came_from[current_spot] = prev
 
-        if current_spot == end_spot:
-            # print(deep_limit, ctr)
-            # reconstruct_path(path, grid_maze, start_spot, end_spot, draw_updates, win, window_mode=window_mode)
-            return path, visited
-
-        for neighbor in current_spot.neighbors:
-            if neighbor in visited:
-                continue
-            stack.append((neighbor, path))
-            if neighbor != start_spot and neighbor != end_spot:
-                neighbor.mark_next()
+            if current_spot != start_spot and current_spot != end_spot:
+                current_spot.make_closed()
                 if draw_updates and window_mode:
-                    draw_spot(win=win, spot=neighbor)
-            if neighbor == end_spot:
-                break
+                    draw_spot(win=win, spot=current_spot)
+
+            if current_spot == end_spot:
+                while current_spot:
+                    path.append(current_spot)
+                    current_spot = came_from[current_spot]
+                path.reverse()
+                reconstruct_path(path, grid_maze, start_spot, end_spot, draw_updates, win, window_mode=window_mode)
+                return path, visited
+
+            for neighbor in current_spot.neighbors:
+                if neighbor not in visited:
+                    stack.append((neighbor, current_spot, depth + 1))
+                    if neighbor != start_spot and neighbor != end_spot:
+                        neighbor.mark_next()
+                        if draw_updates and window_mode:
+                            draw_spot(win=win, spot=neighbor)
 
     return [], visited
 
 
-def bfs(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, win=None, draw_updates=True, window_mode=True):
-    queue = [(start_spot, [])]  # Stack of (Spot, path)
+def dfs(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, win=None, draw_updates=True, window_mode=True,
+        *args):
+    stack = [(start_spot, None)]  # Stack of (Spot, predecessor)
     visited = set()
-    while queue:
-        current_spot, path = queue.pop(0)
-        if current_spot in visited:
-            continue
-        visited.add(current_spot)
-        if current_spot != start_spot and current_spot != end_spot:
-            current_spot.make_closed()
-            if draw_updates and window_mode:
-                draw_spot(win=win, spot=current_spot)
-        path = path + [current_spot]
+    came_from = {spot: None for row in grid_maze for spot in row}
+    path = []
 
-        if current_spot == end_spot:
-            reconstruct_path(path, grid_maze, start_spot, end_spot, draw_updates, win, window_mode=window_mode)
-            return path, visited
+    while stack:
+        current_spot, prev = stack.pop()
 
-        for neighbor in current_spot.neighbors:
-            if neighbor in visited:
-                continue
-            queue.append((neighbor, path))
-            if neighbor != start_spot and neighbor != end_spot:
-                neighbor.mark_next()
+        if current_spot not in visited:
+            visited.add(current_spot)
+            came_from[current_spot] = prev
+
+            if current_spot != start_spot and current_spot != end_spot:
+                current_spot.make_closed()
                 if draw_updates and window_mode:
-                    draw_spot(win=win, spot=neighbor)
-            if neighbor == end_spot:
-                queue.insert(0, (neighbor, path))
-                break
+                    draw_spot(win=win, spot=current_spot)
+
+            if current_spot == end_spot:
+                while current_spot:
+                    path.append(current_spot)
+                    current_spot = came_from[current_spot]
+                path.reverse()
+                reconstruct_path(path, grid_maze, start_spot, end_spot, draw_updates, win, window_mode=window_mode)
+                return path, visited
+
+            for neighbor in current_spot.neighbors:
+                if neighbor not in visited:
+                    stack.append((neighbor, current_spot))
+                    if neighbor != start_spot and neighbor != end_spot:
+                        neighbor.mark_next()
+                        if draw_updates and window_mode:
+                            draw_spot(win=win, spot=neighbor)
 
     return [], visited
 
 
-def bfs_no_path(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, win=None, draw_updates=True, window_mode=True):
-    queue = [(start_spot, [])]  # Stack of (Spot, path)
+def bfs(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, win=None, draw_updates=True, window_mode=True,
+        *args):
+    queue = [(start_spot, None)]  # Queue of (Spot, predecessor)
     visited = set()
+    path = []
+    came_from = {spot: None for row in grid_maze for spot in row}
+
     while queue:
-        current_spot, path = queue.pop(0)
-        if current_spot in visited:
-            continue
-        visited.add(current_spot)
-        if current_spot != start_spot and current_spot != end_spot:
-            current_spot.make_closed()
-            if draw_updates and window_mode:
-                draw_spot(win=win, spot=current_spot)
-        #path = path + [current_spot]
+        current_spot, prev = queue.pop(0)
 
-        if current_spot == end_spot:
-            #reconstruct_path(path, grid_maze, start_spot, end_spot, draw_updates, win, window_mode=window_mode)
-            return path, visited
+        if current_spot not in visited:
+            visited.add(current_spot)
+            came_from[current_spot] = prev
 
-        for neighbor in current_spot.neighbors:
-            if neighbor in visited:
-                continue
-            queue.append((neighbor, path))
-            if neighbor != start_spot and neighbor != end_spot:
-                neighbor.mark_next()
+            if current_spot != start_spot and current_spot != end_spot:
+                current_spot.make_closed()
                 if draw_updates and window_mode:
-                    draw_spot(win=win, spot=neighbor)
-            if neighbor == end_spot:
-                queue.insert(0, (neighbor, path))
-                break
+                    draw_spot(win=win, spot=current_spot)
+
+            if current_spot == end_spot:
+                while current_spot:
+                    path.append(current_spot)
+                    current_spot = came_from[current_spot]
+                path.reverse()
+                reconstruct_path(path, grid_maze, start_spot, end_spot, draw_updates, win, window_mode=window_mode)
+                return path, visited
+
+            for neighbor in current_spot.neighbors:
+                if neighbor not in visited:
+                    queue.append((neighbor, current_spot))
+                    if neighbor != start_spot and neighbor != end_spot:
+                        neighbor.mark_next()
+                        if draw_updates and window_mode:
+                            draw_spot(win=win, spot=neighbor)
 
     return [], visited
