@@ -1,3 +1,5 @@
 pygame
 colorama
 numpy
+pandas
+matplotlib

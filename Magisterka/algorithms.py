@@ -1,7 +1,7 @@
 import heapq
 from typing import List, Tuple, Set
 from spot import Spot
-from utils import manhattan_heuristic, reconstruct_path, draw_spot
+from utils import reconstruct_path, draw_spot, manhattan_heuristic
 
 
 def a_star(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwargs) -> Tuple[List[Spot], Set[Spot]]:
@@ -20,7 +20,6 @@ def a_star(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwar
     win = kwargs.get('win')
     draw_updates = kwargs.get('draw_updates', True)
     window_mode = kwargs.get('window_mode', True)
-    heuristic_method = kwargs.get('heuristic_method', manhattan_heuristic)
 
     # Priority queue initialized with the start spot
     pq = [(0, start_spot)]  # Priority queue of (f_score, Spot)
@@ -59,21 +58,105 @@ def a_star(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwar
             return path, visited
 
         # Explore the neighbors of the current spot
-        for neighbor in current_spot.neighbors:
-            if neighbor not in visited:
-                temp_g_score = g_score[current_spot] + neighbor.spot_value
-                if temp_g_score < g_score[neighbor]:
-                    came_from[neighbor] = current_spot
-                    g_score[neighbor] = temp_g_score
-                    f_score[neighbor] = temp_g_score + heuristic_method(neighbor, end_spot)
-                    heapq.heappush(pq, (f_score[neighbor], neighbor))
-
-                    if neighbor != start_spot and neighbor != end_spot:
-                        neighbor.make_next()
-                        if draw_updates and window_mode:
-                            draw_spot(win=win, spot=neighbor)
+        __explore_bidirectional_neighbours(pq, current_spot, came_from, visited, g_score, f_score, end_spot, start_spot,
+                                           draw_updates, window_mode, win)
 
     return [], visited
+
+
+def bidirectional_a_star(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwargs) -> Tuple[List[Spot], Set[Spot]]:
+    """
+    Perform the A* search algorithm.
+
+    Args:
+        grid_maze (List[List[Spot]]): The grid maze containing spots.
+        start_spot (Spot): The starting spot.
+        end_spot (Spot): The ending spot.
+        kwargs: Additional arguments like 'win', 'draw_updates', 'window_mode', 'heuristic_method'.
+
+    Returns:
+        Tuple[List[Spot], Set[Spot]]: The path and visited spots.
+    """
+    win = kwargs.get('win')
+    draw_updates = kwargs.get('draw_updates', True)
+    window_mode = kwargs.get('window_mode', True)
+
+    # Priority queues for start and end searches
+    pq_start = [(0, start_spot)]  # Priority queue of (f_score, Spot) from start
+    pq_end = [(0, end_spot)]  # Priority queue of (f_score, Spot) from end
+
+    visited_start = set()
+    visited_end = set()
+    path = []
+
+    # Initialize g_score and f_score for all spots
+    g_score_start = {spot: float("inf") for row in grid_maze for spot in row}
+    g_score_end = {spot: float("inf") for row in grid_maze for spot in row}
+    g_score_start[start_spot] = 0
+    g_score_end[end_spot] = 0
+
+    f_score_start = {spot: float("inf") for row in grid_maze for spot in row}
+    f_score_end = {spot: float("inf") for row in grid_maze for spot in row}
+    f_score_start[start_spot] = manhattan_heuristic(start_spot, end_spot)
+    f_score_end[end_spot] = manhattan_heuristic(end_spot, start_spot)
+
+    # Dictionary to keep track of the most efficient path
+    came_from_start = {spot: None for row in grid_maze for spot in row}
+    came_from_end = {spot: None for row in grid_maze for spot in row}
+
+    # Main loop
+    while pq_start and pq_end:
+        # Choose which search to expand based on the size of the frontiers
+        if len(pq_start) <= len(pq_end):
+            # Expand the start search
+            current_f_score_start, current_spot_start = heapq.heappop(pq_start)
+
+            if current_spot_start in visited_start:
+                continue
+            visited_start.add(current_spot_start)
+
+            # Mark the current spot as closed and draw it if needed
+            if current_spot_start != start_spot and current_spot_start != end_spot:
+                current_spot_start.make_closed()
+                if draw_updates and window_mode:
+                    draw_spot(win=win, spot=current_spot_start)
+
+            # Check if we've met the end search
+            if current_spot_start in visited_end:
+                path = __reconstruct_bidirectional_path(current_spot_start, came_from_start, came_from_end)
+                reconstruct_path(path, grid_maze, start_spot, end_spot, draw_updates, win, window_mode=window_mode)
+                return path, visited_start.union(visited_end)
+
+            # Explore the neighbors of the current spot
+            __explore_bidirectional_neighbours(pq_start, current_spot_start, came_from_start, visited_start,
+                                               g_score_start, f_score_start, end_spot, start_spot,
+                                               draw_updates, window_mode, win)
+        else:
+            # Expand the end search
+            current_f_score_end, current_spot_end = heapq.heappop(pq_end)
+
+            if current_spot_end in visited_end:
+                continue
+            visited_end.add(current_spot_end)
+
+            # Mark the current spot as closed and draw it if needed
+            if current_spot_end != start_spot and current_spot_end != end_spot:
+                current_spot_end.make_closed()
+                if draw_updates and window_mode:
+                    draw_spot(win=win, spot=current_spot_end)
+
+            # Check if we've met the start search
+            if current_spot_end in visited_start:
+                path = __reconstruct_bidirectional_path(current_spot_end, came_from_start, came_from_end)
+                reconstruct_path(path, grid_maze, start_spot, end_spot, draw_updates, win, window_mode=window_mode)
+                return path, visited_start.union(visited_end)
+
+            # Explore the neighbors of the current spot
+            __explore_bidirectional_neighbours(pq_end, current_spot_end, came_from_end, visited_end,
+                                               g_score_end, f_score_end, end_spot, start_spot,
+                                               draw_updates, window_mode, win)
+
+    return [], visited_start.union(visited_end)
 
 
 def dijkstra(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwargs) -> Tuple[List[Spot], Set[Spot]]:
@@ -321,3 +404,42 @@ def bfs(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwargs)
                             draw_spot(win=win, spot=neighbor)
 
     return [], visited
+
+
+def __reconstruct_bidirectional_path(meeting_spot, came_from_start, came_from_end):
+    path_start = []
+    path_end = []
+
+    # Reconstruct path from start to meeting spot
+    current_spot = meeting_spot
+    while current_spot:
+        path_start.append(current_spot)
+        current_spot = came_from_start[current_spot]
+    path_start.reverse()
+
+    # Reconstruct path from meeting spot to end
+    current_spot = meeting_spot
+    while current_spot:
+        path_end.append(current_spot)
+        current_spot = came_from_end[current_spot]
+
+    # Concatenate start and end paths
+    return path_start + path_end[1:]
+
+
+def __explore_bidirectional_neighbours(pq, current_spot, came_from, visited, g_score, f_score, end_spot, start_spot,
+                                       draw_updates, window_mode, win):
+    # Explore the neighbors of the current spot
+    for neighbor in current_spot.neighbors:
+        if neighbor not in visited:
+            temp_g_score = g_score[current_spot] + neighbor.spot_value
+            if temp_g_score < g_score[neighbor]:
+                came_from[neighbor] = current_spot
+                g_score[neighbor] = temp_g_score
+                f_score[neighbor] = temp_g_score + manhattan_heuristic(neighbor, end_spot)
+                heapq.heappush(pq, (f_score[neighbor], neighbor))
+
+                if neighbor != start_spot and neighbor != end_spot:
+                    neighbor.make_next()
+                    if draw_updates and window_mode:
+                        draw_spot(win=win, spot=neighbor)

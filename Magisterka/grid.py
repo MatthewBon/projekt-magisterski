@@ -29,10 +29,10 @@ class Grid(ProjectLogger):
         self.rows = rows
         self.print_flag = print_maze
 
-        self.logger.info(f"Generating {rows}x{rows} maze...")
+        self.logger.debug(f"Generating {rows}x{rows} maze...")
         time_start = time.time()
         self.generate_grid_maze()
-        self.logger.info(f"Maze generated in {round(time.time() - time_start, 4)}s\n")
+        self.logger.debug(f"Maze generated in {round(time.time() - time_start, 4)}s\n")
         if self.print_flag:
             self.print_grid_maze_to_console()
 
