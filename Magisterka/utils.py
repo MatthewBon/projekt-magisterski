@@ -19,20 +19,6 @@ def manhattan_heuristic(p1: Spot, p2: Spot, weight: int = 1) -> int:
     return weight * (abs(p1.row - p2.row) + abs(p1.col - p2.col))
 
 
-def taxicab_heuristic(p1: Spot, p2: Spot) -> int:
-    """
-    Calculate the Taxicab heuristic between two spots.
-
-    Args:
-        p1 (Spot): The first spot.
-        p2 (Spot): The second spot.
-
-    Returns:
-        int: The Taxicab distance between the two spots.
-    """
-    return abs(p1.row - p2.row) + abs(p1.col - p2.col) - min(abs(p1.row - p2.row), abs(p1.col - p2.col))
-
-
 def chebyshev_heuristic(spot: Spot, end: Spot) -> int:
     """
     Calculate the Chebyshev heuristic between two spots.
