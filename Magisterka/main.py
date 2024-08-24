@@ -13,7 +13,7 @@ from scoring_and_plot import analyze_results_and_generate_plot
 
 
 WIDTH = 1440
-EXECUTION_NUMBER = 3
+EXECUTION_NUMBER = 50
 MIN_SIZE = 40
 MID_SIZE = 160
 MAX_SIZE = 640
