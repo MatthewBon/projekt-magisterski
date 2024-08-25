@@ -11,7 +11,7 @@ from utils import is_within_bounds, reset_grid, manhattan_heuristic
 
 
 class Grid(ProjectLogger):
-    def __init__(self, rows: int, gap: int, print_maze: bool = False):
+    def __init__(self, rows: int, gap: int, generate_in_the_same_q:bool = False, print_maze: bool = False):
         """
         Initialize the Grid.
 
@@ -22,6 +22,7 @@ class Grid(ProjectLogger):
         """
         super().__init__()
         init()
+        self.generate_in_the_same_q = generate_in_the_same_q
         self.grid_maze = []
         self.end_spot = None
         self.start_spot = None
@@ -157,6 +158,8 @@ class Grid(ProjectLogger):
 
         # Ensure end spot is in an opposite quadrant
         opposite_quadrant_index = opposite_quadrants[start_quadrant_index]
+        if self.generate_in_the_same_q:
+            opposite_quadrant_index = opposite_quadrants[opposite_quadrant_index]
         end_quadrant = quadrants[opposite_quadrant_index]
         self.end_spot = select_spot(end_quadrant)
 

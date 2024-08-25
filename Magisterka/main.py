@@ -7,20 +7,22 @@ from enums.colors import Colors as colors
 from utils import draw_grid, reset_grid, calculate_blocks
 import pygame
 from grid import Grid
-from algorithms import a_star, dijkstra, bfs, dfs, limited_deep_dfs, bidirectional_a_star
+from algorithms import (a_star, dijkstra, bfs, dfs, limited_deep_dfs, bidirectional_a_star,
+                        equalized_bidirectional_a_star)
 from typing import Tuple, Dict, Any
 from scoring_and_plot import analyze_results_and_generate_plot
 
 
 WIDTH = 1440
-EXECUTION_NUMBER = 50
+EXECUTION_NUMBER = 500
 MIN_SIZE = 40
 MID_SIZE = 160
 MAX_SIZE = 640
 
 
 class AlgorithmAnalyzer(ProjectLogger):
-    def __init__(self, rows: int, draw_updates: bool, window_mode: bool = True, display_time: int = 1):
+    def __init__(self, rows: int, draw_updates: bool, directory: str, window_mode: bool = True, show_plot: bool = False,
+                 start_end_in_the_same_q: bool = False, display_time: int = 1):
         """
         Initialize the AlgorithmAnalyzer.
 
@@ -37,9 +39,11 @@ class AlgorithmAnalyzer(ProjectLogger):
         self.grid_maze = None
         self.start_spot = None
         self.grid_object = None
+        self.start_end_in_the_same_q = start_end_in_the_same_q
         self.window_mode = window_mode
         self.display_time = display_time
         self.draw_updates = draw_updates
+        self.show_plot = show_plot
         self.rows = rows
         if not self.rows % 2:
             self.rows += 1
@@ -49,44 +53,37 @@ class AlgorithmAnalyzer(ProjectLogger):
             self.width = 500
 
         # Directory for storing CSV and PNG files
-        self.directory = f"maze_{self.rows}"
-
-        # Check if the directory exists and remove its contents if it does
-        if os.path.exists(self.directory):
-            self.logger.info(f"Directory {self.directory} exists. Removing its contents.")
-            shutil.rmtree(self.directory)
-
-        # Recreate the directory
-        os.makedirs(self.directory)
+        self.directory = directory
 
         # Create CSV file inside the directory
-        self.filename = os.path.join(self.directory, f"algorithms_results_{self.rows}.csv")
+        self.filename = os.path.join(self.directory, f"algorithms_results_{self.rows}_{start_end_in_the_same_q}.csv")
 
         # Create CSV file and write the header
         with open(self.filename, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["Algorithm_name", "Execution Time (s)", "Path Length (cells)",
-                             "Searched Cells", "Total Path Cost"])
+            writer.writerow(["Algorithm_name", "Execution Time (s)", "Searched Cells", "Total Path Cost"])
         algorithms = {
             "A*": a_star,
             "BA*": bidirectional_a_star,
-            "DJIKSTRA": dijkstra,
+            "EBA*": equalized_bidirectional_a_star,
+            "DIJKSTRA": dijkstra,
             "DFS_NORMAL": dfs,
             "DFS_LIM": limited_deep_dfs,
             "BFS": bfs,
         }
 
         self.window_handler(algorithms)
+        self.analyze_results(rows)
 
     def generate_maze(self):
         """
         Generate the maze using Grid class.
         """
-        self.grid_object = Grid(self.rows, self.gap)
+        self.grid_object = Grid(self.rows, self.gap, self.start_end_in_the_same_q)
         self.grid_maze = self.grid_object.grid_maze
         self.start_spot, self.end_spot = self.grid_object.start_spot, self.grid_object.end_spot
 
-    def solv_maze(self, algorithm, **kwargs) -> Tuple[float, int, int, float]:
+    def solv_maze(self, algorithm, **kwargs) -> Tuple[float, int, float]:
         """
         Run a given algorithm and measure its performance.
 
@@ -107,7 +104,7 @@ class AlgorithmAnalyzer(ProjectLogger):
         if self.window_mode:
             time.sleep(self.display_time)
         reset_grid(self.grid_maze, win, self.window_mode)
-        return end_time, len(path), len(visited), path_cost
+        return end_time, len(visited), path_cost
 
     def window_handler(self, algorithms: Dict[str, Any]):
         """
@@ -143,38 +140,46 @@ class AlgorithmAnalyzer(ProjectLogger):
             total_open_cells = calculate_blocks(self.grid_maze, [colors.WHITE_1, colors.WHITE_15, colors.WHITE_15])
             for name, algorithm in algorithms.items():
                 self.logger.debug(f'Executing {name} algorithm...\n')
-                exec_time, path_len, searched, path_cost = self.solv_maze(algorithm, win=win)
+                exec_time, searched, path_cost = self.solv_maze(algorithm, win=win)
                 searched_cells_percentage = round(((searched / total_open_cells) * 100), 4)
                 self.logger.debug(f"\n\tExecution_time: {exec_time} s,"
-                                  f"\n\tTrace length: {path_len} cells,"
                                   f"\n\tSearched cells : {searched}"
                                   f"\n\tSearched cells percentage: {searched_cells_percentage} %"
                                   f"\n\tTotal path cost: {path_cost}\n")
-                self.dump_results_into_csv(name, exec_time, path_len, searched, path_cost)
+                self.dump_results_into_csv(name, exec_time, searched, path_cost)
 
-    def dump_results_into_csv(self, alg_name: str, exec_time: float, path_len: int, searched: int, path_cost: float):
+    def dump_results_into_csv(self, alg_name: str, exec_time: float, searched: int, path_cost: float):
         """
         Dump the results of algorithm execution into a CSV file.
 
         Args:
             alg_name (str): Name of the algorithm.
             exec_time (float): Execution time in seconds.
-            path_len (int): Length of the path found.
             searched (int): Number of searched cells.
             path_cost (float): Total cost of the path.
         """
         with open(self.filename, mode='a', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow([alg_name, exec_time, path_len, searched, path_cost])
+            writer.writerow([alg_name, exec_time, searched, path_cost])
 
-    def analyze_results(self, show=False):
-        analyze_results_and_generate_plot(self.filename, self.rows, self.logger, show)
+    def analyze_results(self, rows):
+        analyze_results_and_generate_plot(self.filename, rows, self.logger, self.show_plot,
+                                          self.start_end_in_the_same_q)
 
 
 if __name__ == "__main__":
     display_results = False
     debug_update_draw = False
     show_plt = False
+
     for size in [MIN_SIZE, MID_SIZE, MAX_SIZE]:
-        analyzer = AlgorithmAnalyzer(size, debug_update_draw, display_results)
-        analyzer.analyze_results(show=show_plt)
+        # Directory for storing CSV and PNG files
+        directory_name = f"maze_{size}"
+        # Check if the directory exists and remove its contents if it does
+        if os.path.exists(directory_name):
+            shutil.rmtree(directory_name)
+        # Recreate the directory
+        os.makedirs(directory_name)
+
+        AlgorithmAnalyzer(size, debug_update_draw, directory_name, display_results, show_plt)
+        AlgorithmAnalyzer(size, debug_update_draw, directory_name, display_results, show_plt, True)

@@ -3,13 +3,12 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 
-def analyze_results_and_generate_plot(filename, maze_size, logger, show=False):
+def analyze_results_and_generate_plot(filename, maze_size, logger, show=False, start_end_in_the_same_q=False):
     # Custom weights emphasizing path cost and searched cells percentage
     weights = {
-        'exec_time': 0.1,
-        'path_length': 0.15,
-        'searched_cells': 0.45,
-        'path_cost': 0.3
+        'exec_time': 0.2,
+        'searched_cells': 0.40,
+        'path_cost': 0.40
     }
 
     # Display maze size in the console
@@ -25,25 +24,18 @@ def analyze_results_and_generate_plot(filename, maze_size, logger, show=False):
     # Summarize the data by algorithm
     summary = df.groupby('Algorithm_name').agg(
         avg_exec_time=('Execution Time (s)', 'mean'),
-        avg_path_length=('Path Length (cells)', 'mean'),
         avg_searched_cells=('Searched Cells', 'mean'),
         avg_path_cost=('Total Path Cost', 'mean')
     ).reset_index()
 
-    # Log the summary
-    logger.info("Summary of Algorithm Performance:")
-    logger.info(f"\n{summary.to_string(index=False)}\n")
-
     # Apply weights before multiplying or dividing
     summary['weighted_exec_time'] = summary['avg_exec_time'] * weights['exec_time']
-    summary['weighted_path_length'] = summary['avg_path_length'] * weights['path_length']
     summary['weighted_searched_cells'] = summary['avg_searched_cells'] * weights['searched_cells']
     summary['weighted_path_cost'] = summary['avg_path_cost'] * weights['path_cost']
 
     # Calculate overall score by multiplying all weighted metrics together
     summary['overall_score'] = round((
             summary['weighted_exec_time'] *
-            summary['weighted_path_length'] *
             summary['weighted_searched_cells'] *
             summary['weighted_path_cost']
     ), 3)
@@ -57,18 +49,22 @@ def analyze_results_and_generate_plot(filename, maze_size, logger, show=False):
     # Log the ranked summary
     logger.info("Ranked Algorithm Performance (Using Multiplication for Overall Score):")
     logger.info(
-        f"\n{summary[['Algorithm_name', 'avg_exec_time', 'avg_path_length', 'avg_searched_cells', 'avg_path_cost', 
+        f"\n{summary[['Algorithm_name', 'avg_exec_time', 'avg_searched_cells', 'avg_path_cost', 
                       'overall_score', 'overall_rank']].to_string(index=False)}\n")
 
     # Generate Charts
-    generate_charts(summary, show, maze_size)
+    generate_charts(summary, show, maze_size, start_end_in_the_same_q)
 
 
-def generate_charts(summary, show, maze_size):
+def generate_charts(summary, show, maze_size, start_end_in_the_same_q):
     folder_name = f"maze_{maze_size}"
 
     def get_file_path(filename):
-        return os.path.join(folder_name, f"{filename}_{maze_size}.png")
+        return os.path.join(folder_name, f"{filename}_{maze_size}_{start_end_in_the_same_q}.png")
+
+    # Ensure the directory exists
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
 
     plt.figure(figsize=(10, 6))
     plt.bar(summary['Algorithm_name'], summary['avg_exec_time'], color='blue')
@@ -80,17 +76,8 @@ def generate_charts(summary, show, maze_size):
     plt.savefig(get_file_path('avg_execution_time'))
     if show:
         plt.show()
-
-    plt.figure(figsize=(10, 6))
-    plt.bar(summary['Algorithm_name'], summary['avg_path_length'], color='green')
-    plt.xlabel('Algorithm')
-    plt.ylabel('Average Path Length (cells)')
-    plt.title(f'Average Path Length by Algorithm (Maze Size: {maze_size})')
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    plt.savefig(get_file_path('avg_path_length'))
-    if show:
-        plt.show()
+    else:
+        plt.close()  # Close the figure only if not showing it
 
     plt.figure(figsize=(10, 6))
     plt.bar(summary['Algorithm_name'], summary['avg_searched_cells'], color='orange')
@@ -102,6 +89,8 @@ def generate_charts(summary, show, maze_size):
     plt.savefig(get_file_path('avg_searched_cells'))
     if show:
         plt.show()
+    else:
+        plt.close()  # Close the figure only if not showing it
 
     plt.figure(figsize=(10, 6))
     plt.bar(summary['Algorithm_name'], summary['avg_path_cost'], color='red')
@@ -113,6 +102,8 @@ def generate_charts(summary, show, maze_size):
     plt.savefig(get_file_path('avg_path_cost'))
     if show:
         plt.show()
+    else:
+        plt.close()  # Close the figure only if not showing it
 
     plt.figure(figsize=(10, 6))
     plt.bar(summary['Algorithm_name'], summary['overall_rank'], color='purple')
@@ -124,3 +115,5 @@ def generate_charts(summary, show, maze_size):
     plt.savefig(get_file_path('overall_rank'))
     if show:
         plt.show()
+    else:
+        plt.close()  # Close the figure only if not showing it
