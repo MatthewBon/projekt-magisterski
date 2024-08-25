@@ -3,7 +3,24 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 
-def analyze_results_and_generate_plot(filename, maze_size, logger, show=False, start_end_in_the_same_q=False):
+def analyze_results_and_generate_plot(filename: str, maze_size: int, logger, show: bool = False, start_end_in_the_same_q: bool = False) -> None:
+    """
+    Analyze the algorithm performance results from a CSV file and generate plots.
+
+    This function reads the CSV file, calculates weighted scores based on execution time,
+    searched cells, and path cost, and ranks the algorithms accordingly. It then generates
+    and saves various plots to visualize the performance of the algorithms.
+
+    Args:
+        filename (str): Path to the CSV file containing algorithm performance data.
+        maze_size (int): The size of the maze (number of rows/columns).
+        logger: Logger instance to log messages.
+        show (bool, optional): Whether to display the plots after generating them. Defaults to False.
+        start_end_in_the_same_q (bool, optional): Whether start and end points are in the same quadrant. Defaults to False.
+
+    Returns:
+        None
+    """
     # Custom weights emphasizing path cost and searched cells percentage
     weights = {
         'exec_time': 0.2,
@@ -56,16 +73,32 @@ def analyze_results_and_generate_plot(filename, maze_size, logger, show=False, s
     generate_charts(summary, show, maze_size, start_end_in_the_same_q)
 
 
-def generate_charts(summary, show, maze_size, start_end_in_the_same_q):
+def generate_charts(summary: pd.DataFrame, show: bool, maze_size: int, start_end_in_the_same_q: bool) -> None:
+    """
+    Generate and save bar charts based on the algorithm performance summary.
+
+    This function creates bar charts for average execution time, searched cells, path cost,
+    and overall rank. The charts are saved as PNG files.
+
+    Args:
+        summary (pd.DataFrame): The DataFrame containing the summarized performance data.
+        show (bool): Whether to display the plots after generating them.
+        maze_size (int): The size of the maze (number of rows/columns).
+        start_end_in_the_same_q (bool): Whether start and end points are in the same quadrant.
+
+    Returns:
+        None
+    """
     folder_name = f"maze_{maze_size}"
 
-    def get_file_path(filename):
+    def get_file_path(filename: str) -> str:
         return os.path.join(folder_name, f"{filename}_{maze_size}_{start_end_in_the_same_q}.png")
 
     # Ensure the directory exists
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
 
+    # Average Execution Time
     plt.figure(figsize=(10, 6))
     plt.bar(summary['Algorithm_name'], summary['avg_exec_time'], color='blue')
     plt.xlabel('Algorithm')
@@ -77,8 +110,9 @@ def generate_charts(summary, show, maze_size, start_end_in_the_same_q):
     if show:
         plt.show()
     else:
-        plt.close()  # Close the figure only if not showing it
+        plt.close()
 
+    # Average Searched Cells
     plt.figure(figsize=(10, 6))
     plt.bar(summary['Algorithm_name'], summary['avg_searched_cells'], color='orange')
     plt.xlabel('Algorithm')
@@ -90,8 +124,9 @@ def generate_charts(summary, show, maze_size, start_end_in_the_same_q):
     if show:
         plt.show()
     else:
-        plt.close()  # Close the figure only if not showing it
+        plt.close()
 
+    # Average Path Cost
     plt.figure(figsize=(10, 6))
     plt.bar(summary['Algorithm_name'], summary['avg_path_cost'], color='red')
     plt.xlabel('Algorithm')
@@ -103,8 +138,9 @@ def generate_charts(summary, show, maze_size, start_end_in_the_same_q):
     if show:
         plt.show()
     else:
-        plt.close()  # Close the figure only if not showing it
+        plt.close()
 
+    # Overall Rank
     plt.figure(figsize=(10, 6))
     plt.bar(summary['Algorithm_name'], summary['overall_rank'], color='purple')
     plt.xlabel('Algorithm')
@@ -116,4 +152,4 @@ def generate_charts(summary, show, maze_size, start_end_in_the_same_q):
     if show:
         plt.show()
     else:
-        plt.close()  # Close the figure only if not showing it
+        plt.close()

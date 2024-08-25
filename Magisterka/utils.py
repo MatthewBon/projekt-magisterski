@@ -6,12 +6,12 @@ from typing import List, Optional, Union
 
 def manhattan_heuristic(p1: Spot, p2: Spot, weight: int = 1) -> int:
     """
-    Calculate the Manhattan heuristic between two spots.
+    Calculate the Manhattan distance heuristic between two spots.
 
     Args:
         p1 (Spot): The first spot.
         p2 (Spot): The second spot.
-        weight (int): The weight to apply to the heuristic.
+        weight (int): The weight to apply to the heuristic. Defaults to 1.
 
     Returns:
         int: The Manhattan distance between the two spots.
@@ -21,11 +21,11 @@ def manhattan_heuristic(p1: Spot, p2: Spot, weight: int = 1) -> int:
 
 def chebyshev_heuristic(spot: Spot, end: Spot) -> int:
     """
-    Calculate the Chebyshev heuristic between two spots.
+    Calculate the Chebyshev distance heuristic between two spots.
 
     Args:
         spot (Spot): The current spot.
-        end (Spot): The end spot.
+        end (Spot): The target spot.
 
     Returns:
         int: The Chebyshev distance between the two spots.
@@ -35,19 +35,19 @@ def chebyshev_heuristic(spot: Spot, end: Spot) -> int:
 
 def reconstruct_path(path: List[Spot], grid: List[List[Spot]], start_spot: Spot, end_spot: Spot,
                      draw_updates: bool, win: Optional[pygame.Surface], color: Optional[colors] = None,
-                     window_mode: bool = True):
+                     window_mode: bool = True) -> None:
     """
-    Reconstruct the path from start to end spot.
+    Reconstruct and display the path from the start spot to the end spot.
 
     Args:
         path (List[Spot]): The list of spots representing the path.
         grid (List[List[Spot]]): The grid of spots.
-        start_spot (Spot): The starting spot.
-        end_spot (Spot): The ending spot.
-        draw_updates (bool): Flag to draw updates.
+        start_spot (Spot): The starting spot of the path.
+        end_spot (Spot): The ending spot of the path.
+        draw_updates (bool): Whether to draw updates to the window.
         win (Optional[pygame.Surface]): The window surface to draw on.
-        color (Optional[colors]): The color to draw the path.
-        window_mode (bool): Flag to indicate if window mode is enabled.
+        color (Optional[colors]): The color to draw the path. Defaults to TURQUOISE.
+        window_mode (bool): Whether the window mode is enabled. Defaults to True.
     """
     for spot in path:
         if spot != start_spot and spot != end_spot:
@@ -58,9 +58,9 @@ def reconstruct_path(path: List[Spot], grid: List[List[Spot]], start_spot: Spot,
         draw_grid(win, grid)
 
 
-def draw_grid(win: pygame.Surface, grid: List[List[Spot]]):
+def draw_grid(win: pygame.Surface, grid: List[List[Spot]]) -> None:
     """
-    Draw the entire grid on the window.
+    Draw the entire grid of spots on the window surface.
 
     Args:
         win (pygame.Surface): The window surface to draw on.
@@ -72,9 +72,9 @@ def draw_grid(win: pygame.Surface, grid: List[List[Spot]]):
     pygame.display.update()
 
 
-def draw_spot(win: pygame.Surface, spot: Spot):
+def draw_spot(win: pygame.Surface, spot: Spot) -> None:
     """
-    Draw a single spot on the window.
+    Draw a single spot on the window surface.
 
     Args:
         win (pygame.Surface): The window surface to draw on.
@@ -84,34 +84,34 @@ def draw_spot(win: pygame.Surface, spot: Spot):
     pygame.display.update()
 
 
-def reset_grid(grid: List[List[Spot]], win: Optional[pygame.Surface] = None, window_mode: bool = True):
+def reset_grid(grid: List[List[Spot]], win: Optional[pygame.Surface] = None, window_mode: bool = True) -> None:
     """
-    Reset the grid to its initial state.
+    Reset the grid to its initial state, updating the window if necessary.
 
     Args:
         grid (List[List[Spot]]): The grid of spots.
-        win (Optional[pygame.Surface]): The window surface to draw on.
-        window_mode (bool): Flag to indicate if window mode is enabled.
+        win (Optional[pygame.Surface]): The window surface to draw on. Defaults to None.
+        window_mode (bool): Whether the window mode is enabled. Defaults to True.
     """
     for row in grid:
         for spot in row:
             spot.reset()
-            if window_mode:
+            if window_mode and win:
                 spot.draw(win)
-    if window_mode:
+    if window_mode and win:
         pygame.display.update()
 
 
 def calculate_blocks(grid: List[List[Spot]], color: Union[colors, List[colors]] = colors.TURQUOISE) -> int:
     """
-    Calculate the number of blocks of a specific color in the grid.
+    Count the number of spots in the grid that match the specified color(s).
 
     Args:
         grid (List[List[Spot]]): The grid of spots.
-        color (Union[colors, List[colors]]): The color(s) to count.
+        color (Union[colors, List[colors]]): The color(s) to count. Defaults to TURQUOISE.
 
     Returns:
-        int: The number of blocks of the specified color.
+        int: The number of spots that match the specified color(s).
     """
     counter = 0
     for row in grid:
@@ -127,12 +127,12 @@ def calculate_blocks(grid: List[List[Spot]], color: Union[colors, List[colors]] 
 
 def is_within_bounds(x: int, y: int, rows: int) -> bool:
     """
-    Check if the given coordinates are within the bounds of the grid.
+    Check if the given coordinates are within the valid bounds of the grid.
 
     Args:
-        x (int): The x-coordinate.
-        y (int): The y-coordinate.
-        rows (int): The number of rows in the grid.
+        x (int): The x-coordinate (row index).
+        y (int): The y-coordinate (column index).
+        rows (int): The total number of rows in the grid.
 
     Returns:
         bool: True if the coordinates are within bounds, False otherwise.

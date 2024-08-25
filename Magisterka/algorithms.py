@@ -6,34 +6,32 @@ from utils import reconstruct_path, draw_spot, manhattan_heuristic
 
 def a_star(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwargs) -> Tuple[List[Spot], Set[Spot]]:
     """
-    Perform the A* search algorithm.
+    Perform the A* search algorithm to find the shortest path from the start spot to the end spot.
 
     Args:
-        grid_maze (List[List[Spot]]): The grid maze containing spots.
-        start_spot (Spot): The starting spot.
-        end_spot (Spot): The ending spot.
-        kwargs: Additional arguments like 'win', 'draw_updates', 'window_mode', 'heuristic_method'.
+        grid_maze (List[List[Spot]]): The grid maze containing all the spots.
+        start_spot (Spot): The starting spot of the search.
+        end_spot (Spot): The ending spot of the search.
+        kwargs: Additional optional arguments like 'win' (Pygame window), 'draw_updates' (whether to draw updates),
+                'window_mode' (whether to display in windowed mode), and 'heuristic_method' (method to calculate the heuristic).
 
     Returns:
-        Tuple[List[Spot], Set[Spot]]: The path and visited spots.
+        Tuple[List[Spot], Set[Spot]]: A tuple containing the path from start to end and the set of visited spots.
     """
     win = kwargs.get('win')
     draw_updates = kwargs.get('draw_updates', True)
     window_mode = kwargs.get('window_mode', True)
 
-    # Priority queue initialized with the start spot
-    pq = [(0, start_spot)]  # Priority queue of (f_score, Spot)
+    pq = [(0, start_spot)]  # Priority queue initialized with the start spot
     visited = set()
     path = []
 
-    # Initialize g_score and f_score for all spots
-    g_score = {spot: float("inf") for row in grid_maze for spot in row}
+    g_score = {spot: float("inf") for row in grid_maze for spot in row}  # Initialize g_scores with infinity
     g_score[start_spot] = 0
-    f_score = {spot: float("inf") for row in grid_maze for spot in row}
-    f_score[start_spot] = manhattan_heuristic(start_spot, end_spot)
+    f_score = {spot: float("inf") for row in grid_maze for spot in row}  # Initialize f_scores with infinity
+    f_score[start_spot] = manhattan_heuristic(start_spot, end_spot)  # Set the f_score of the start spot
 
-    # Dictionary to keep track of the most efficient path
-    came_from = {spot: None for row in grid_maze for spot in row}
+    came_from = {spot: None for row in grid_maze for spot in row}  # Track the most efficient path
 
     while pq:
         current_f_score, current_spot = heapq.heappop(pq)
@@ -42,13 +40,11 @@ def a_star(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwar
             continue
         visited.add(current_spot)
 
-        # Mark the current spot as closed and draw it if needed
         if current_spot != start_spot and current_spot != end_spot:
             current_spot.make_closed()
             if draw_updates and window_mode:
                 draw_spot(win=win, spot=current_spot)
 
-        # If the end spot is reached, reconstruct the path
         if current_spot == end_spot:
             while current_spot:
                 path.append(current_spot)
@@ -57,40 +53,36 @@ def a_star(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwar
             reconstruct_path(path, grid_maze, start_spot, end_spot, draw_updates, win, window_mode=window_mode)
             return path, visited
 
-        # Explore the neighbors of the current spot
         __explore_neighbours(pq, current_spot, came_from, visited, g_score, f_score, end_spot, start_spot,
                              draw_updates, window_mode, win)
 
     return [], visited
 
 
-def equalized_bidirectional_a_star(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwargs) \
-        -> Tuple[List[Spot], Set[Spot]]:
+def equalized_bidirectional_a_star(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwargs) -> Tuple[List[Spot], Set[Spot]]:
     """
-    Perform the A* search algorithm.
+    Perform the equalized bidirectional A* search algorithm from both the start and end spots simultaneously.
 
     Args:
-        grid_maze (List[List[Spot]]): The grid maze containing spots.
-        start_spot (Spot): The starting spot.
-        end_spot (Spot): The ending spot.
-        kwargs: Additional arguments like 'win', 'draw_updates', 'window_mode', 'heuristic_method'.
+        grid_maze (List[List[Spot]]): The grid maze containing all the spots.
+        start_spot (Spot): The starting spot of the search.
+        end_spot (Spot): The ending spot of the search.
+        kwargs: Additional optional arguments like 'win', 'draw_updates', 'window_mode', and 'heuristic_method'.
 
     Returns:
-        Tuple[List[Spot], Set[Spot]]: The path and visited spots.
+        Tuple[List[Spot], Set[Spot]]: A tuple containing the path from start to end and the set of visited spots.
     """
     win = kwargs.get('win')
     draw_updates = kwargs.get('draw_updates', True)
     window_mode = kwargs.get('window_mode', True)
 
-    # Priority queues for start and end searches
-    pq_start = [(0, start_spot)]  # Priority queue of (f_score, Spot) from start
-    pq_end = [(0, end_spot)]  # Priority queue of (f_score, Spot) from end
+    pq_start = [(0, start_spot)]  # Priority queue for the start search
+    pq_end = [(0, end_spot)]  # Priority queue for the end search
 
     visited_start = set()
     visited_end = set()
     path = []
 
-    # Initialize g_score and f_score for all spots
     g_score_start = {spot: float("inf") for row in grid_maze for spot in row}
     g_score_end = {spot: float("inf") for row in grid_maze for spot in row}
     g_score_start[start_spot] = 0
@@ -101,58 +93,47 @@ def equalized_bidirectional_a_star(grid_maze: List[List[Spot]], start_spot: Spot
     f_score_start[start_spot] = manhattan_heuristic(start_spot, end_spot)
     f_score_end[end_spot] = manhattan_heuristic(end_spot, start_spot)
 
-    # Dictionary to keep track of the most efficient path
     came_from_start = {spot: None for row in grid_maze for spot in row}
     came_from_end = {spot: None for row in grid_maze for spot in row}
 
-    # Main loop
     while pq_start and pq_end:
-        # Choose which search to expand based on the size of the frontiers
         if len(pq_start) <= len(pq_end):
-            # Expand the start search
             current_f_score_start, current_spot_start = heapq.heappop(pq_start)
 
             if current_spot_start in visited_start:
                 continue
             visited_start.add(current_spot_start)
 
-            # Mark the current spot as closed and draw it if needed
             if current_spot_start != start_spot and current_spot_start != end_spot:
                 current_spot_start.make_closed()
                 if draw_updates and window_mode:
                     draw_spot(win=win, spot=current_spot_start)
 
-            # Check if we've met the end search
             if current_spot_start in visited_end:
                 path = __reconstruct_bidirectional_path(current_spot_start, came_from_start, came_from_end)
                 reconstruct_path(path, grid_maze, start_spot, end_spot, draw_updates, win, window_mode=window_mode)
                 return path, visited_start.union(visited_end)
 
-            # Explore the neighbors of the current spot
             __explore_neighbours(pq_start, current_spot_start, came_from_start, visited_start,
                                  g_score_start, f_score_start, end_spot, start_spot,
                                  draw_updates, window_mode, win)
         else:
-            # Expand the end search
             current_f_score_end, current_spot_end = heapq.heappop(pq_end)
 
             if current_spot_end in visited_end:
                 continue
             visited_end.add(current_spot_end)
 
-            # Mark the current spot as closed and draw it if needed
             if current_spot_end != start_spot and current_spot_end != end_spot:
                 current_spot_end.make_closed()
                 if draw_updates and window_mode:
                     draw_spot(win=win, spot=current_spot_end)
 
-            # Check if we've met the start search
             if current_spot_end in visited_start:
                 path = __reconstruct_bidirectional_path(current_spot_end, came_from_start, came_from_end)
                 reconstruct_path(path, grid_maze, start_spot, end_spot, draw_updates, win, window_mode=window_mode)
                 return path, visited_start.union(visited_end)
 
-            # Explore the neighbors of the current spot
             __explore_neighbours(pq_end, current_spot_end, came_from_end, visited_end,
                                  g_score_end, f_score_end, end_spot, start_spot,
                                  draw_updates, window_mode, win)
@@ -162,30 +143,28 @@ def equalized_bidirectional_a_star(grid_maze: List[List[Spot]], start_spot: Spot
 
 def bidirectional_a_star(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwargs) -> Tuple[List[Spot], Set[Spot]]:
     """
-    Perform the A* search algorithm.
+    Perform the bidirectional A* search algorithm from both the start and end spots simultaneously.
 
     Args:
-        grid_maze (List[List[Spot]]): The grid maze containing spots.
-        start_spot (Spot): The starting spot.
-        end_spot (Spot): The ending spot.
-        kwargs: Additional arguments like 'win', 'draw_updates', 'window_mode', 'heuristic_method'.
+        grid_maze (List[List[Spot]]): The grid maze containing all the spots.
+        start_spot (Spot): The starting spot of the search.
+        end_spot (Spot): The ending spot of the search.
+        kwargs: Additional optional arguments like 'win', 'draw_updates', 'window_mode', and 'heuristic_method'.
 
     Returns:
-        Tuple[List[Spot], Set[Spot]]: The path and visited spots.
+        Tuple[List[Spot], Set[Spot]]: A tuple containing the path from start to end and the set of visited spots.
     """
     win = kwargs.get('win')
     draw_updates = kwargs.get('draw_updates', True)
     window_mode = kwargs.get('window_mode', True)
 
-    # Priority queues for start and end searches
-    pq_start = [(0, start_spot)]  # Priority queue of (f_score, Spot) from start
-    pq_end = [(0, end_spot)]  # Priority queue of (f_score, Spot) from end
+    pq_start = [(0, start_spot)]  # Priority queue for the start search
+    pq_end = [(0, end_spot)]  # Priority queue for the end search
 
     visited_start = set()
     visited_end = set()
     path = []
 
-    # Initialize g_score and f_score for all spots
     g_score_start = {spot: float("inf") for row in grid_maze for spot in row}
     g_score_end = {spot: float("inf") for row in grid_maze for spot in row}
     g_score_start[start_spot] = 0
@@ -196,55 +175,45 @@ def bidirectional_a_star(grid_maze: List[List[Spot]], start_spot: Spot, end_spot
     f_score_start[start_spot] = manhattan_heuristic(start_spot, end_spot)
     f_score_end[end_spot] = manhattan_heuristic(end_spot, start_spot)
 
-    # Dictionary to keep track of the most efficient path
     came_from_start = {spot: None for row in grid_maze for spot in row}
     came_from_end = {spot: None for row in grid_maze for spot in row}
 
-    # Main loop
     while pq_start and pq_end:
-        # Expand the start search
         current_f_score_start, current_spot_start = heapq.heappop(pq_start)
 
         if current_spot_start in visited_start:
             continue
         visited_start.add(current_spot_start)
 
-        # Mark the current spot as closed and draw it if needed
         if current_spot_start != start_spot and current_spot_start != end_spot:
             current_spot_start.make_closed()
             if draw_updates and window_mode:
                 draw_spot(win=win, spot=current_spot_start)
 
-        # Check if we've met the end search
         if current_spot_start in visited_end:
             path = __reconstruct_bidirectional_path(current_spot_start, came_from_start, came_from_end)
             reconstruct_path(path, grid_maze, start_spot, end_spot, draw_updates, win, window_mode=window_mode)
             return path, visited_start.union(visited_end)
 
-        # Explore the neighbors of the current spot
         __explore_neighbours(pq_start, current_spot_start, came_from_start, visited_start, g_score_start, f_score_start,
                              end_spot, start_spot, draw_updates, window_mode, win)
 
-        # Expand the end search
         current_f_score_end, current_spot_end = heapq.heappop(pq_end)
 
         if current_spot_end in visited_end:
             continue
         visited_end.add(current_spot_end)
 
-        # Mark the current spot as closed and draw it if needed
         if current_spot_end != start_spot and current_spot_end != end_spot:
             current_spot_end.make_closed()
             if draw_updates and window_mode:
                 draw_spot(win=win, spot=current_spot_end)
 
-        # Check if we've met the start search
         if current_spot_end in visited_start:
             path = __reconstruct_bidirectional_path(current_spot_end, came_from_start, came_from_end)
             reconstruct_path(path, grid_maze, start_spot, end_spot, draw_updates, win, window_mode=window_mode)
             return path, visited_start.union(visited_end)
 
-        # Explore the neighbors of the current spot
         __explore_neighbours(pq_end, current_spot_end, came_from_end, visited_end, g_score_end, f_score_end,
                              end_spot, start_spot, draw_updates, window_mode, win)
 
@@ -253,31 +222,27 @@ def bidirectional_a_star(grid_maze: List[List[Spot]], start_spot: Spot, end_spot
 
 def dijkstra(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwargs) -> Tuple[List[Spot], Set[Spot]]:
     """
-    Perform the Dijkstra's algorithm.
+    Perform Dijkstra's algorithm to find the shortest path from the start spot to the end spot.
 
     Args:
-        grid_maze (List[List[Spot]]): The grid maze containing spots.
-        start_spot (Spot): The starting spot.
-        end_spot (Spot): The ending spot.
-        kwargs: Additional arguments like 'win', 'draw_updates', 'window_mode'.
+        grid_maze (List[List[Spot]]): The grid maze containing all the spots.
+        start_spot (Spot): The starting spot of the search.
+        end_spot (Spot): The ending spot of the search.
+        kwargs: Additional optional arguments like 'win', 'draw_updates', and 'window_mode'.
 
     Returns:
-        Tuple[List[Spot], Set[Spot]]: The path and visited spots.
+        Tuple[List[Spot], Set[Spot]]: A tuple containing the path from start to end and the set of visited spots.
     """
     win = kwargs.get('win')
     draw_updates = kwargs.get('draw_updates', True)
     window_mode = kwargs.get('window_mode', True)
 
-    # Priority queue initialized with the start spot
-    pq = [(0, start_spot)]  # Priority queue of (distance, Spot)
+    pq = [(0, start_spot)]  # Priority queue initialized with the start spot
 
-    # Initialize g_score for all spots
     g_score = {spot: float('inf') for row in grid_maze for spot in row}
     g_score[start_spot] = 0
 
     visited = set()
-
-    # Dictionary to keep track of the most efficient path
     came_from = {spot: None for row in grid_maze for spot in row}
 
     while pq:
@@ -286,13 +251,11 @@ def dijkstra(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kw
             continue
         visited.add(current_spot)
 
-        # Mark the current spot as closed and draw it if needed
         if current_spot != start_spot and current_spot != end_spot:
             current_spot.make_closed()
             if draw_updates and window_mode:
                 draw_spot(win=win, spot=current_spot)
 
-        # If the end spot is reached, reconstruct the path
         if current_spot == end_spot:
             current = end_spot
             path = []
@@ -303,7 +266,6 @@ def dijkstra(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kw
             reconstruct_path(path, grid_maze, start_spot, end_spot, draw_updates, win, window_mode=window_mode)
             return path, visited
 
-        # Explore the neighbors of the current spot
         for neighbor in current_spot.neighbors:
             distance = current_distance + neighbor.spot_value
             if distance < g_score[neighbor]:
@@ -320,26 +282,24 @@ def dijkstra(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kw
 
 def limited_deep_dfs(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwargs) -> Tuple[List[Spot], Set[Spot]]:
     """
-    Perform the limited depth-first search algorithm.
+    Perform the limited depth-first search (DFS) algorithm with a dynamic depth limit.
 
     Args:
-        grid_maze (List[List[Spot]]): The grid maze containing spots.
-        start_spot (Spot): The starting spot.
-        end_spot (Spot): The ending spot.
-        kwargs: Additional arguments like 'win', 'draw_updates', 'window_mode'.
+        grid_maze (List[List[Spot]]): The grid maze containing all the spots.
+        start_spot (Spot): The starting spot of the search.
+        end_spot (Spot): The ending spot of the search.
+        kwargs: Additional optional arguments like 'win', 'draw_updates', and 'window_mode'.
 
     Returns:
-        Tuple[List[Spot], Set[Spot]]: The path and visited spots.
+        Tuple[List[Spot], Set[Spot]]: A tuple containing the path from start to end and the set of visited spots.
     """
     win = kwargs.get('win')
     draw_updates = kwargs.get('draw_updates', True)
     window_mode = kwargs.get('window_mode', True)
 
     depth = 0
-    stack = [(start_spot, None)]  # Stack of (Spot, predecessor)
+    stack = [(start_spot, None)]  # Stack initialized with the start spot
     visited = set()
-
-    # Dictionary to keep track of the most efficient path
     came_from = {spot: None for row in grid_maze for spot in row}
     path = []
     depth_limit = len(grid_maze[0]) // 2  # Initial depth limit
@@ -357,13 +317,11 @@ def limited_deep_dfs(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Sp
             visited.add(current_spot)
             came_from[current_spot] = prev
 
-            # Mark the current spot as closed and draw it if needed
             if current_spot != start_spot and current_spot != end_spot:
                 current_spot.make_closed()
                 if draw_updates and window_mode:
                     draw_spot(win=win, spot=current_spot)
 
-            # If the end spot is reached, reconstruct the path
             if current_spot == end_spot:
                 while current_spot:
                     path.append(current_spot)
@@ -372,7 +330,6 @@ def limited_deep_dfs(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Sp
                 reconstruct_path(path, grid_maze, start_spot, end_spot, draw_updates, win, window_mode=window_mode)
                 return path, visited
 
-            # Explore the neighbors of the current spot
             for neighbor in current_spot.neighbors:
                 if neighbor not in visited:
                     stack.append((neighbor, current_spot))
@@ -386,25 +343,23 @@ def limited_deep_dfs(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Sp
 
 def dfs(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwargs) -> Tuple[List[Spot], Set[Spot]]:
     """
-    Perform the depth-first search algorithm.
+    Perform the depth-first search (DFS) algorithm to find a path from the start spot to the end spot.
 
     Args:
-        grid_maze (List[List[Spot]]): The grid maze containing spots.
-        start_spot (Spot): The starting spot.
-        end_spot (Spot): The ending spot.
-        kwargs: Additional arguments like 'win', 'draw_updates', 'window_mode'.
+        grid_maze (List[List[Spot]]): The grid maze containing all the spots.
+        start_spot (Spot): The starting spot of the search.
+        end_spot (Spot): The ending spot of the search.
+        kwargs: Additional optional arguments like 'win', 'draw_updates', and 'window_mode'.
 
     Returns:
-        Tuple[List[Spot], Set[Spot]]: The path and visited spots.
+        Tuple[List[Spot], Set[Spot]]: A tuple containing the path from start to end and the set of visited spots.
     """
     win = kwargs.get('win')
     draw_updates = kwargs.get('draw_updates', True)
     window_mode = kwargs.get('window_mode', True)
 
-    stack = [(start_spot, None)]  # Stack of (Spot, predecessor)
+    stack = [(start_spot, None)]  # Stack initialized with the start spot
     visited = set()
-
-    # Dictionary to keep track of the most efficient path
     came_from = {spot: None for row in grid_maze for spot in row}
     path = []
 
@@ -415,13 +370,11 @@ def dfs(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwargs)
             visited.add(current_spot)
             came_from[current_spot] = prev
 
-            # Mark the current spot as closed and draw it if needed
             if current_spot != start_spot and current_spot != end_spot:
                 current_spot.make_closed()
                 if draw_updates and window_mode:
                     draw_spot(win=win, spot=current_spot)
 
-            # If the end spot is reached, reconstruct the path
             if current_spot == end_spot:
                 while current_spot:
                     path.append(current_spot)
@@ -430,7 +383,6 @@ def dfs(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwargs)
                 reconstruct_path(path, grid_maze, start_spot, end_spot, draw_updates, win, window_mode=window_mode)
                 return path, visited
 
-            # Explore the neighbors of the current spot
             for neighbor in current_spot.neighbors:
                 if neighbor not in visited:
                     stack.append((neighbor, current_spot))
@@ -444,26 +396,25 @@ def dfs(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwargs)
 
 def bfs(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwargs) -> Tuple[List[Spot], Set[Spot]]:
     """
-    Perform the breadth-first search algorithm.
+    Perform the breadth-first search (BFS) algorithm to find the shortest path from the start spot to the end spot.
 
     Args:
-        grid_maze (List[List[Spot]]): The grid maze containing spots.
-        start_spot (Spot): The starting spot.
-        end_spot (Spot): The ending spot.
-        kwargs: Additional arguments like 'win', 'draw_updates', 'window_mode'.
+        grid_maze (List[List[Spot]]): The grid maze containing all the spots.
+        start_spot (Spot): The starting spot of the search.
+        end_spot (Spot): The ending spot of the search.
+        kwargs: Additional optional arguments like 'win', 'draw_updates', and 'window_mode'.
 
     Returns:
-        Tuple[List[Spot], Set[Spot]]: The path and visited spots.
+        Tuple[List[Spot], Set[Spot]]: A tuple containing the path from start to end and the set of visited spots.
     """
     win = kwargs.get('win')
     draw_updates = kwargs.get('draw_updates', True)
     window_mode = kwargs.get('window_mode', True)
 
-    queue = [(start_spot, None)]  # Queue of (Spot, predecessor)
+    queue = [(start_spot, None)]  # Queue initialized with the start spot
     visited = set()
     path = []
 
-    # Dictionary to keep track of the most efficient path
     came_from = {spot: None for row in grid_maze for spot in row}
 
     while queue:
@@ -473,13 +424,11 @@ def bfs(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwargs)
             visited.add(current_spot)
             came_from[current_spot] = prev
 
-            # Mark the current spot as closed and draw it if needed
             if current_spot != start_spot and current_spot != end_spot:
                 current_spot.make_closed()
                 if draw_updates and window_mode:
                     draw_spot(win=win, spot=current_spot)
 
-            # If the end spot is reached, reconstruct the path
             if current_spot == end_spot:
                 while current_spot:
                     path.append(current_spot)
@@ -488,7 +437,6 @@ def bfs(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwargs)
                 reconstruct_path(path, grid_maze, start_spot, end_spot, draw_updates, win, window_mode=window_mode)
                 return path, visited
 
-            # Explore the neighbors of the current spot
             for neighbor in current_spot.neighbors:
                 if neighbor not in visited:
                     queue.append((neighbor, current_spot))
@@ -501,29 +449,55 @@ def bfs(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwargs)
 
 
 def __reconstruct_bidirectional_path(meeting_spot, came_from_start, came_from_end):
+    """
+    Reconstruct the path for bidirectional search algorithms.
+
+    Args:
+        meeting_spot (Spot): The spot where the two searches met.
+        came_from_start (dict): The path reconstruction dictionary for the start search.
+        came_from_end (dict): The path reconstruction dictionary for the end search.
+
+    Returns:
+        List[Spot]: The reconstructed path from start to end.
+    """
     path_start = []
     path_end = []
 
-    # Reconstruct path from start to meeting spot
     current_spot = meeting_spot
     while current_spot:
         path_start.append(current_spot)
         current_spot = came_from_start[current_spot]
     path_start.reverse()
 
-    # Reconstruct path from meeting spot to end
     current_spot = meeting_spot
     while current_spot:
         path_end.append(current_spot)
         current_spot = came_from_end[current_spot]
 
-    # Concatenate start and end paths
     return path_start + path_end[1:]
 
 
 def __explore_neighbours(pq, current_spot, came_from, visited, g_score, f_score, end_spot, start_spot,
                          draw_updates, window_mode, win):
-    # Explore the neighbors of the current spot
+    """
+    Explore the neighbors of the current spot for pathfinding algorithms.
+
+    Args:
+        pq (list): The priority queue for the search.
+        current_spot (Spot): The current spot being expanded.
+        came_from (dict): The path reconstruction dictionary.
+        visited (set): The set of visited spots.
+        g_score (dict): The g_score dictionary for the search.
+        f_score (dict): The f_score dictionary for the search.
+        end_spot (Spot): The target spot of the search.
+        start_spot (Spot): The starting spot of the search.
+        draw_updates (bool): Whether to draw updates on the grid.
+        window_mode (bool): Whether the search is displayed in a window.
+        win (Any): The Pygame window for drawing updates.
+
+    Returns:
+        None
+    """
     for neighbor in current_spot.neighbors:
         if neighbor not in visited:
             temp_g_score = g_score[current_spot] + neighbor.spot_value

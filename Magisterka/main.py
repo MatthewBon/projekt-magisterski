@@ -9,9 +9,8 @@ import pygame
 from grid import Grid
 from algorithms import (a_star, dijkstra, bfs, dfs, limited_deep_dfs, bidirectional_a_star,
                         equalized_bidirectional_a_star)
-from typing import Tuple, Dict, Any
+from typing import Tuple, Dict, Any, Optional
 from scoring_and_plot import analyze_results_and_generate_plot
-
 
 WIDTH = 1440
 EXECUTION_NUMBER = 500
@@ -29,7 +28,10 @@ class AlgorithmAnalyzer(ProjectLogger):
         Args:
             rows (int): Number of rows in the grid.
             draw_updates (bool): Flag to draw updates.
+            directory (str): Directory for storing results.
             window_mode (bool): Flag for window mode.
+            show_plot (bool): Flag to show plot after analysis.
+            start_end_in_the_same_q (bool): Flag indicating whether start and end should be in the same quadrant.
             display_time (int): Time to display the result.
         """
         super().__init__()
@@ -62,6 +64,7 @@ class AlgorithmAnalyzer(ProjectLogger):
         with open(self.filename, mode='w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(["Algorithm_name", "Execution Time (s)", "Searched Cells", "Total Path Cost"])
+
         algorithms = {
             "A*": a_star,
             "BA*": bidirectional_a_star,
@@ -75,24 +78,24 @@ class AlgorithmAnalyzer(ProjectLogger):
         self.window_handler(algorithms)
         self.analyze_results(rows)
 
-    def generate_maze(self):
+    def generate_maze(self) -> None:
         """
-        Generate the maze using Grid class.
+        Generate the maze using the Grid class and initialize start and end spots.
         """
         self.grid_object = Grid(self.rows, self.gap, self.start_end_in_the_same_q)
         self.grid_maze = self.grid_object.grid_maze
         self.start_spot, self.end_spot = self.grid_object.start_spot, self.grid_object.end_spot
 
-    def solv_maze(self, algorithm, **kwargs) -> Tuple[float, int, float]:
+    def solv_maze(self, algorithm: Any, **kwargs: Any) -> Tuple[float, int, float]:
         """
         Run a given algorithm and measure its performance.
 
         Args:
-            algorithm: The algorithm to run.
-            kwargs: Additional arguments like 'win' and 'heuristic'.
+            algorithm (Any): The algorithm to run.
+            kwargs (Any): Additional arguments like 'win' and 'heuristic'.
 
         Returns:
-            Tuple containing execution time, path length, number of visited cells, and total path cost.
+            Tuple[float, int, float]: Execution time, number of visited cells, and total path cost.
         """
         win = kwargs.get('win')
 
@@ -106,12 +109,12 @@ class AlgorithmAnalyzer(ProjectLogger):
         reset_grid(self.grid_maze, win, self.window_mode)
         return end_time, len(visited), path_cost
 
-    def window_handler(self, algorithms: Dict[str, Any]):
+    def window_handler(self, algorithms: Dict[str, Any]) -> None:
         """
         Handle the window setup and execution of algorithms.
 
         Args:
-            algorithms (dict): Dictionary of algorithms to run.
+            algorithms (Dict[str, Any]): Dictionary of algorithms to run.
         """
         win = None
         n = EXECUTION_NUMBER
@@ -123,14 +126,14 @@ class AlgorithmAnalyzer(ProjectLogger):
         else:
             self.run_algorithms_n_times(n, algorithms, win)
 
-    def run_algorithms_n_times(self, n: int, algorithms: Dict[str, Any], win):
+    def run_algorithms_n_times(self, n: int, algorithms: Dict[str, Any], win: Optional[Any]) -> None:
         """
         Run each algorithm 'n' times and log the results.
 
         Args:
             n (int): Number of times to run each algorithm.
-            algorithms (dict): Dictionary of algorithms to run.
-            win: Pygame window to draw the grid.
+            algorithms (Dict[str, Any]): Dictionary of algorithms to run.
+            win (Optional[Any]): Pygame window to draw the grid.
         """
         for i in range(n):
             self.logger.debug(f"{i} iteration running...")
@@ -148,7 +151,7 @@ class AlgorithmAnalyzer(ProjectLogger):
                                   f"\n\tTotal path cost: {path_cost}\n")
                 self.dump_results_into_csv(name, exec_time, searched, path_cost)
 
-    def dump_results_into_csv(self, alg_name: str, exec_time: float, searched: int, path_cost: float):
+    def dump_results_into_csv(self, alg_name: str, exec_time: float, searched: int, path_cost: float) -> None:
         """
         Dump the results of algorithm execution into a CSV file.
 
@@ -162,7 +165,13 @@ class AlgorithmAnalyzer(ProjectLogger):
             writer = csv.writer(file)
             writer.writerow([alg_name, exec_time, searched, path_cost])
 
-    def analyze_results(self, rows):
+    def analyze_results(self, rows: int) -> None:
+        """
+        Analyze the results of the algorithms and generate plots.
+
+        Args:
+            rows (int): Number of rows in the grid.
+        """
         analyze_results_and_generate_plot(self.filename, rows, self.logger, self.show_plot,
                                           self.start_end_in_the_same_q)
 
