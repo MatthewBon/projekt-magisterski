@@ -11,17 +11,19 @@ from utils import is_within_bounds, reset_grid, manhattan_heuristic
 
 
 class Grid(ProjectLogger):
-    def __init__(self, rows: int, gap: int, print_maze: bool = False):
+    def __init__(self, rows: int, gap: int, generate_in_the_same_q: bool = False, print_maze: bool = False):
         """
         Initialize the Grid.
 
         Args:
             rows (int): Number of rows in the grid.
             gap (int): Gap between the spots.
-            print_maze (bool): Flag to print the maze to console.
+            generate_in_the_same_q (bool): Flag to generate start and end in the same quadrant.
+            print_maze (bool): Flag to print the maze to the console.
         """
         super().__init__()
         init()
+        self.generate_in_the_same_q = generate_in_the_same_q
         self.grid_maze = []
         self.end_spot = None
         self.start_spot = None
@@ -45,7 +47,7 @@ class Grid(ProjectLogger):
         """
         return '\n'.join([''.join([str(spot) for spot in row]) for row in self.grid_maze])
 
-    def generate_grid_maze(self):
+    def generate_grid_maze(self) -> None:
         """
         Generate the grid maze with paths and special spots.
         """
@@ -66,12 +68,13 @@ class Grid(ProjectLogger):
             raise Exception("Maze generated incorrectly!")
         self.add_special_spots()
 
-    def carve_path(self):
+    def carve_path(self) -> None:
         """
         Carve the main path in the grid maze using a depth-first search approach.
         """
         dim = self.rows // 2
-        self.grid_maze = [[Spot(y, x, self.gap, 2*dim+1, colors.BLACK) for x in range(2*dim+1)] for y in range(2*dim+1)]
+        self.grid_maze = [[Spot(y, x, self.gap, 2 * dim + 1, colors.BLACK) for x in range(2 * dim + 1)]
+                          for y in range(2 * dim + 1)]
         x, y = (0, 0)
         stack = [(x, y)]
         while len(stack) > 0:
@@ -91,7 +94,7 @@ class Grid(ProjectLogger):
             else:
                 stack.pop()
 
-    def carve_additional_passages(self):
+    def carve_additional_passages(self) -> None:
         """
         Carve additional passages in the grid maze to ensure more complex paths.
         """
@@ -123,7 +126,7 @@ class Grid(ProjectLogger):
             for x, y in selected_positions:
                 self.grid_maze[x][y].make_open()
 
-    def select_start_end_spots(self):
+    def select_start_end_spots(self) -> None:
         """
         Select the start and end spots for the maze ensuring they are in opposite quadrants.
         """
@@ -157,6 +160,8 @@ class Grid(ProjectLogger):
 
         # Ensure end spot is in an opposite quadrant
         opposite_quadrant_index = opposite_quadrants[start_quadrant_index]
+        if self.generate_in_the_same_q:
+            opposite_quadrant_index = opposite_quadrants[opposite_quadrant_index]
         end_quadrant = quadrants[opposite_quadrant_index]
         self.end_spot = select_spot(end_quadrant)
 
@@ -164,11 +169,11 @@ class Grid(ProjectLogger):
         self.end_spot.make_end()
         self.update_all_neighbors()
 
-    def add_special_spots(self):
+    def add_special_spots(self) -> None:
         """
         Add special spots with different weights to the maze.
         """
-        def bfs_change_weight(s_spot: Spot, new_weight: int, r_size: int):
+        def bfs_change_weight(s_spot: Spot, new_weight: int, r_size: int) -> None:
             queue = [s_spot]
             visited = set()
             counter = 0
@@ -246,7 +251,7 @@ class Grid(ProjectLogger):
         reset_grid(self.grid_maze, window_mode=False)
         return True
 
-    def update_all_neighbors(self):
+    def update_all_neighbors(self) -> None:
         """
         Update neighbors for all spots in the grid maze.
         """
@@ -257,7 +262,7 @@ class Grid(ProjectLogger):
                 spot.update_open_neighbors(self.grid_maze)
         self.logger.debug(f"Neighbors updated in {round(time.time() - time_start, 4)}s\n")
 
-    def print_grid_maze_to_console(self):
+    def print_grid_maze_to_console(self) -> None:
         """
         Print the grid maze to the console.
         """
