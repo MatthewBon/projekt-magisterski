@@ -3,7 +3,8 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 
-def analyze_results_and_generate_plot(filename: str, maze_size: int, logger, show: bool = False, start_end_in_the_same_q: bool = False) -> None:
+def analyze_results_and_generate_plot(filename: str, maze_size: int, logger, show: bool,
+                                      start_end_in_the_same_q: bool, cell_open_percentage: int) -> None:
     """
     Analyze the algorithm performance results from a CSV file and generate plots.
 
@@ -15,8 +16,9 @@ def analyze_results_and_generate_plot(filename: str, maze_size: int, logger, sho
         filename (str): Path to the CSV file containing algorithm performance data.
         maze_size (int): The size of the maze (number of rows/columns).
         logger: Logger instance to log messages.
-        show (bool, optional): Whether to display the plots after generating them. Defaults to False.
-        start_end_in_the_same_q (bool, optional): Whether start and end points are in the same quadrant. Defaults to False.
+        show (bool): Whether to display the plots after generating them.
+        start_end_in_the_same_q (bool): Whether start and end points are in the same quadrant.
+        cell_open_percentage (int): The percentage of opened passages to complicate maze.
 
     Returns:
         None
@@ -68,12 +70,14 @@ def analyze_results_and_generate_plot(filename: str, maze_size: int, logger, sho
     logger.info(
         f"\n{summary[['Algorithm_name', 'avg_exec_time', 'avg_searched_cells', 'avg_path_cost', 
                       'overall_score', 'overall_rank']].to_string(index=False)}\n")
+    summary.to_csv('summary.csv', index=False)
 
     # Generate Charts
-    generate_charts(summary, show, maze_size, start_end_in_the_same_q)
+    generate_charts(summary, show, maze_size, start_end_in_the_same_q, cell_open_percentage)
 
 
-def generate_charts(summary: pd.DataFrame, show: bool, maze_size: int, start_end_in_the_same_q: bool) -> None:
+def generate_charts(summary: pd.DataFrame, show: bool, maze_size: int, start_end_in_the_same_q: bool,
+                    cell_open_percentage: int = 0) -> None:
     """
     Generate and save bar charts based on the algorithm performance summary.
 
@@ -85,14 +89,15 @@ def generate_charts(summary: pd.DataFrame, show: bool, maze_size: int, start_end
         show (bool): Whether to display the plots after generating them.
         maze_size (int): The size of the maze (number of rows/columns).
         start_end_in_the_same_q (bool): Whether start and end points are in the same quadrant.
+        cell_open_percentage (int): The percentage of opened passages to complicate maze.
 
     Returns:
         None
     """
-    folder_name = f"maze_{maze_size}"
+    folder_name = f"size{maze_size}_star_end_in_the_same_q{start_end_in_the_same_q}_open_cells_pct{cell_open_percentage}"
 
     def get_file_path(filename: str) -> str:
-        return os.path.join(folder_name, f"{filename}_{maze_size}_{start_end_in_the_same_q}.png")
+        return os.path.join(folder_name, f"{filename}_size{maze_size}_star_end_in_the_same_q{start_end_in_the_same_q}_open_cells_pct{cell_open_percentage}.png")
 
     # Ensure the directory exists
     if not os.path.exists(folder_name):

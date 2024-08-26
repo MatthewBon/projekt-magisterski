@@ -11,7 +11,8 @@ from utils import is_within_bounds, reset_grid, manhattan_heuristic
 
 
 class Grid(ProjectLogger):
-    def __init__(self, rows: int, gap: int, generate_in_the_same_q: bool = False, print_maze: bool = False):
+    def __init__(self, rows: int, gap: int, generate_in_the_same_q: bool = False,
+                 cell_open_percentage: int = 0, print_maze: bool = False):
         """
         Initialize the Grid.
 
@@ -24,6 +25,7 @@ class Grid(ProjectLogger):
         super().__init__()
         init()
         self.generate_in_the_same_q = generate_in_the_same_q
+        self.cell_open_percentage = cell_open_percentage
         self.grid_maze = []
         self.end_spot = None
         self.start_spot = None
@@ -96,7 +98,7 @@ class Grid(ProjectLogger):
 
     def carve_additional_passages(self) -> None:
         """
-        Carve additional passages in the grid maze to ensure more complex paths.
+        Based on cell_open_percentage variable, Carve additional passages in the grid maze to ensure more complex paths.
         """
         def check_neighbors(spot_: Spot) -> bool:
             spot_.update_barrier_neighbors(self.grid_maze)
@@ -109,22 +111,19 @@ class Grid(ProjectLogger):
             elif len(spot_.neighbors) == 1:
                 return True
             return False
+        if self.cell_open_percentage != 0:
+            barrier_positions = []
+            for row in self.grid_maze:
+                for spot in row:
+                    if spot.is_barrier():
+                        if is_within_bounds(spot.row, spot.col, self.rows) and check_neighbors(spot):
+                            barrier_positions.append((spot.row, spot.col))
 
-        barrier_positions = []
-        for row in self.grid_maze:
-            for spot in row:
-                if spot.is_barrier():
-                    if is_within_bounds(spot.row, spot.col, self.rows) and check_neighbors(spot):
-                        barrier_positions.append((spot.row, spot.col))
-
-        if len(barrier_positions) != 0:
-            new_path_counter = int(len(barrier_positions) * 0.20)
-            if new_path_counter == 0:
-                new_path_counter = 1
-
-            selected_positions = random.sample(barrier_positions, new_path_counter)
-            for x, y in selected_positions:
-                self.grid_maze[x][y].make_open()
+            if len(barrier_positions) != 0:
+                new_path_counter = int(len(barrier_positions) * (self.cell_open_percentage / 100))
+                selected_positions = random.sample(barrier_positions, new_path_counter)
+                for x, y in selected_positions:
+                    self.grid_maze[x][y].make_open()
 
     def select_start_end_spots(self) -> None:
         """

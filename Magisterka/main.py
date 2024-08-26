@@ -21,7 +21,7 @@ MAX_SIZE = 640
 
 class AlgorithmAnalyzer(ProjectLogger):
     def __init__(self, rows: int, draw_updates: bool, directory: str, window_mode: bool = True, show_plot: bool = False,
-                 start_end_in_the_same_q: bool = False, display_time: int = 1):
+                 start_end_in_the_same_q: bool = False, cell_open_percentage: int = 0, display_time: int = 1):
         """
         Initialize the AlgorithmAnalyzer.
 
@@ -42,6 +42,7 @@ class AlgorithmAnalyzer(ProjectLogger):
         self.start_spot = None
         self.grid_object = None
         self.start_end_in_the_same_q = start_end_in_the_same_q
+        self.cell_open_percentage = cell_open_percentage
         self.window_mode = window_mode
         self.display_time = display_time
         self.draw_updates = draw_updates
@@ -58,12 +59,12 @@ class AlgorithmAnalyzer(ProjectLogger):
         self.directory = directory
 
         # Create CSV file inside the directory
-        self.filename = os.path.join(self.directory, f"algorithms_results_{self.rows}_{start_end_in_the_same_q}.csv")
+        self.filename = os.path.join(self.directory, f"algorithms_results_{self.rows}_{start_end_in_the_same_q}_{cell_open_percentage}.csv")
 
         # Create CSV file and write the header
-        with open(self.filename, mode='w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(["Algorithm_name", "Execution Time (s)", "Searched Cells", "Total Path Cost"])
+        # with open(self.filename, mode='w', newline='') as file:
+        #     writer = csv.writer(file)
+        #     writer.writerow(["Algorithm_name", "Execution Time (s)", "Searched Cells", "Total Path Cost"])
 
         algorithms = {
             "A*": a_star,
@@ -75,14 +76,14 @@ class AlgorithmAnalyzer(ProjectLogger):
             "BFS": bfs,
         }
 
-        self.window_handler(algorithms)
+        #self.window_handler(algorithms)
         self.analyze_results(rows)
 
     def generate_maze(self) -> None:
         """
         Generate the maze using the Grid class and initialize start and end spots.
         """
-        self.grid_object = Grid(self.rows, self.gap, self.start_end_in_the_same_q)
+        self.grid_object = Grid(self.rows, self.gap, self.start_end_in_the_same_q, self.cell_open_percentage)
         self.grid_maze = self.grid_object.grid_maze
         self.start_spot, self.end_spot = self.grid_object.start_spot, self.grid_object.end_spot
 
@@ -173,7 +174,7 @@ class AlgorithmAnalyzer(ProjectLogger):
             rows (int): Number of rows in the grid.
         """
         analyze_results_and_generate_plot(self.filename, rows, self.logger, self.show_plot,
-                                          self.start_end_in_the_same_q)
+                                          self.start_end_in_the_same_q, self.cell_open_percentage)
 
 
 if __name__ == "__main__":
@@ -181,14 +182,17 @@ if __name__ == "__main__":
     debug_update_draw = False
     show_plt = False
 
-    for size in [MIN_SIZE, MID_SIZE, MAX_SIZE]:
-        # Directory for storing CSV and PNG files
-        directory_name = f"maze_{size}"
-        # Check if the directory exists and remove its contents if it does
-        if os.path.exists(directory_name):
-            shutil.rmtree(directory_name)
-        # Recreate the directory
-        os.makedirs(directory_name)
+    for flag in [False, True]:
+        for size in [MIN_SIZE, MID_SIZE, MAX_SIZE]:
+            for cell_open_pct in [25, 5, 0]:
+                # Directory for storing CSV and PNG files
+                directory_name = f"size{size}_star_end_in_the_same_q{flag}_open_cells_pct{cell_open_pct}"
+                # # Check if the directory exists and remove its contents if it does
+                # if os.path.exists(directory_name):
+                #     shutil.rmtree(directory_name)
+                # # Recreate the directory
+                # os.makedirs(directory_name)
 
-        AlgorithmAnalyzer(size, debug_update_draw, directory_name, display_results, show_plt)
-        AlgorithmAnalyzer(size, debug_update_draw, directory_name, display_results, show_plt, True)
+                AlgorithmAnalyzer(rows=size, draw_updates=debug_update_draw, directory=directory_name,
+                                  window_mode=display_results, show_plot=show_plt, start_end_in_the_same_q=flag,
+                                  cell_open_percentage=cell_open_pct)
