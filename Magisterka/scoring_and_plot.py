@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 
 
 def analyze_results_and_generate_plot(filename: str, maze_size: int, logger, show: bool,
-                                      start_end_in_the_same_q: bool, cell_open_percentage: int) -> None:
+                                      cell_open_percentage: int) -> None:
     """
     Analyze the algorithm performance results from a CSV file and generate plots.
 
@@ -17,7 +17,6 @@ def analyze_results_and_generate_plot(filename: str, maze_size: int, logger, sho
         maze_size (int): The size of the maze (number of rows/columns).
         logger: Logger instance to log messages.
         show (bool): Whether to display the plots after generating them.
-        start_end_in_the_same_q (bool): Whether start and end points are in the same quadrant.
         cell_open_percentage (int): The percentage of opened passages to complicate maze.
 
     Returns:
@@ -31,7 +30,7 @@ def analyze_results_and_generate_plot(filename: str, maze_size: int, logger, sho
     }
 
     # Display maze size in the console
-    logger.info(f"Analyzing maze of size: {maze_size}x{maze_size}")
+    logger.info(f"Analyzing maze of size: {maze_size}x{maze_size} cell_open_percentage: {cell_open_percentage}")
 
     # Load the CSV file into a pandas DataFrame
     try:
@@ -42,7 +41,7 @@ def analyze_results_and_generate_plot(filename: str, maze_size: int, logger, sho
 
     # Summarize the data by algorithm
     summary = df.groupby('Algorithm_name').agg(
-        avg_exec_time=('Execution Time (s)', 'mean'),
+        avg_exec_time=('Execution Time (ms)', 'mean'),
         avg_searched_cells=('Searched Cells', 'mean'),
         avg_path_cost=('Total Path Cost', 'mean')
     ).reset_index()
@@ -53,31 +52,40 @@ def analyze_results_and_generate_plot(filename: str, maze_size: int, logger, sho
     summary['weighted_path_cost'] = summary['avg_path_cost'] * weights['path_cost']
 
     # Calculate overall score by multiplying all weighted metrics together
-    summary['overall_score'] = round((
+    summary['overall_score'] = (
             summary['weighted_exec_time'] *
             summary['weighted_searched_cells'] *
             summary['weighted_path_cost']
-    ), 3)
+    )
 
-    # Sort by overall score (lower scores are better)
-    summary = summary.sort_values('overall_score')
+    # Normalize the overall score to convert it into a percentage (best score as 100%)
+    best_score = summary['overall_score'].min()
+    summary['overall_performance'] = round((best_score / summary['overall_score']) * 100, 2)
 
-    # Rank the algorithms based on the sorted overall score (1 for best score)
-    summary['overall_rank'] = summary['overall_score'].rank(method='min')
+    # Sort by overall performance (higher percentages are better)
+    summary = summary.sort_values('overall_performance', ascending=False)
 
-    # Log the ranked summary
-    logger.info("Ranked Algorithm Performance (Using Multiplication for Overall Score):")
+    # Rank the algorithms based on the sorted overall performance (1 for best performance)
+    summary['overall_rank'] = summary['overall_performance'].rank(ascending=False, method='min')
+
+    # Log the ranked summary with overall_performance as a percentage
+    logger.info("Ranked Algorithm Performance (Normalized to Best Performance as 100%):")
     logger.info(
-        f"\n{summary[['Algorithm_name', 'avg_exec_time', 'avg_searched_cells', 'avg_path_cost', 
-                      'overall_score', 'overall_rank']].to_string(index=False)}\n")
-    summary.to_csv('summary.csv', index=False)
+        f"\n{summary[['Algorithm_name', 'avg_exec_time', 'avg_searched_cells', 'avg_path_cost',
+                      'overall_performance', 'overall_rank']].to_string(index=False)}\n")
+
+    folder_name = f"size{maze_size}_open_cells_pct{cell_open_percentage}"
+    summary = summary.drop(columns=['overall_score'])
+    summary = summary.drop(columns=['weighted_exec_time'])
+    summary = summary.drop(columns=['weighted_searched_cells'])
+    summary = summary.drop(columns=['weighted_path_cost'])
+    summary.to_csv(os.path.join(folder_name, 'summary.csv'), index=False)
 
     # Generate Charts
-    generate_charts(summary, show, maze_size, start_end_in_the_same_q, cell_open_percentage)
+    generate_charts(summary, show, maze_size, cell_open_percentage)
 
 
-def generate_charts(summary: pd.DataFrame, show: bool, maze_size: int, start_end_in_the_same_q: bool,
-                    cell_open_percentage: int = 0) -> None:
+def generate_charts(summary: pd.DataFrame, show: bool, maze_size: int, cell_open_percentage: int = 0) -> None:
     """
     Generate and save bar charts based on the algorithm performance summary.
 
@@ -88,16 +96,15 @@ def generate_charts(summary: pd.DataFrame, show: bool, maze_size: int, start_end
         summary (pd.DataFrame): The DataFrame containing the summarized performance data.
         show (bool): Whether to display the plots after generating them.
         maze_size (int): The size of the maze (number of rows/columns).
-        start_end_in_the_same_q (bool): Whether start and end points are in the same quadrant.
         cell_open_percentage (int): The percentage of opened passages to complicate maze.
 
     Returns:
         None
     """
-    folder_name = f"size{maze_size}_star_end_in_the_same_q{start_end_in_the_same_q}_open_cells_pct{cell_open_percentage}"
+    folder_name = f"size{maze_size}_open_cells_pct{cell_open_percentage}"
 
     def get_file_path(filename: str) -> str:
-        return os.path.join(folder_name, f"{filename}_size{maze_size}_star_end_in_the_same_q{start_end_in_the_same_q}_open_cells_pct{cell_open_percentage}.png")
+        return os.path.join(folder_name, f"{filename}_size{maze_size}_open_cells_pct{cell_open_percentage}.png")
 
     # Ensure the directory exists
     if not os.path.exists(folder_name):
@@ -107,7 +114,7 @@ def generate_charts(summary: pd.DataFrame, show: bool, maze_size: int, start_end
     plt.figure(figsize=(10, 6))
     plt.bar(summary['Algorithm_name'], summary['avg_exec_time'], color='blue')
     plt.xlabel('Algorithm')
-    plt.ylabel('Average Execution Time (s)')
+    plt.ylabel('Average Execution Time (ms)')
     plt.title(f'Average Execution Time by Algorithm (Maze Size: {maze_size})')
     plt.xticks(rotation=45)
     plt.tight_layout()

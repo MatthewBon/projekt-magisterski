@@ -1,7 +1,7 @@
 import pygame
 from spot import Spot
 from enums.colors import Colors as colors
-from typing import List, Optional, Union
+from typing import List, Optional
 
 
 def manhattan_heuristic(p1: Spot, p2: Spot, weight: int = 1) -> int:
@@ -100,29 +100,6 @@ def reset_grid(grid: List[List[Spot]], win: Optional[pygame.Surface] = None, win
                 spot.draw(win)
     if window_mode and win:
         pygame.display.update()
-
-
-def calculate_blocks(grid: List[List[Spot]], color: Union[colors, List[colors]] = colors.TURQUOISE) -> int:
-    """
-    Count the number of spots in the grid that match the specified color(s).
-
-    Args:
-        grid (List[List[Spot]]): The grid of spots.
-        color (Union[colors, List[colors]]): The color(s) to count. Defaults to TURQUOISE.
-
-    Returns:
-        int: The number of spots that match the specified color(s).
-    """
-    counter = 0
-    for row in grid:
-        for spot in row:
-            if isinstance(color, list):
-                if spot.color in color:
-                    counter += 1
-            else:
-                if spot.color == color:
-                    counter += 1
-    return counter
 
 
 def is_within_bounds(x: int, y: int, rows: int) -> bool:

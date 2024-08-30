@@ -13,7 +13,7 @@ def a_star(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwar
         start_spot (Spot): The starting spot of the search.
         end_spot (Spot): The ending spot of the search.
         kwargs: Additional optional arguments like 'win' (Pygame window), 'draw_updates' (whether to draw updates),
-                'window_mode' (whether to display in windowed mode), and 'heuristic_method' (method to calculate the heuristic).
+                'window_mode' (whether to display in windowed mode).
 
     Returns:
         Tuple[List[Spot], Set[Spot]]: A tuple containing the path from start to end and the set of visited spots.
@@ -59,7 +59,8 @@ def a_star(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwar
     return [], visited
 
 
-def equalized_bidirectional_a_star(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwargs) -> Tuple[List[Spot], Set[Spot]]:
+def equalized_bidirectional_a_star(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwargs) \
+        -> Tuple[List[Spot], Set[Spot]]:
     """
     Perform the equalized bidirectional A* search algorithm from both the start and end spots simultaneously.
 
@@ -67,7 +68,7 @@ def equalized_bidirectional_a_star(grid_maze: List[List[Spot]], start_spot: Spot
         grid_maze (List[List[Spot]]): The grid maze containing all the spots.
         start_spot (Spot): The starting spot of the search.
         end_spot (Spot): The ending spot of the search.
-        kwargs: Additional optional arguments like 'win', 'draw_updates', 'window_mode', and 'heuristic_method'.
+        kwargs: Additional optional arguments like 'win', 'draw_updates', 'window_mode'.
 
     Returns:
         Tuple[List[Spot], Set[Spot]]: A tuple containing the path from start to end and the set of visited spots.
@@ -81,7 +82,6 @@ def equalized_bidirectional_a_star(grid_maze: List[List[Spot]], start_spot: Spot
 
     visited_start = set()
     visited_end = set()
-    path = []
 
     g_score_start = {spot: float("inf") for row in grid_maze for spot in row}
     g_score_end = {spot: float("inf") for row in grid_maze for spot in row}
@@ -97,7 +97,7 @@ def equalized_bidirectional_a_star(grid_maze: List[List[Spot]], start_spot: Spot
     came_from_end = {spot: None for row in grid_maze for spot in row}
 
     while pq_start and pq_end:
-        if len(pq_start) <= len(pq_end):
+        if len(pq_end) >= len(pq_start) > 0:
             current_f_score_start, current_spot_start = heapq.heappop(pq_start)
 
             if current_spot_start in visited_start:
@@ -110,6 +110,7 @@ def equalized_bidirectional_a_star(grid_maze: List[List[Spot]], start_spot: Spot
                     draw_spot(win=win, spot=current_spot_start)
 
             if current_spot_start in visited_end:
+                current_spot_start.make_closed()
                 path = __reconstruct_bidirectional_path(current_spot_start, came_from_start, came_from_end)
                 reconstruct_path(path, grid_maze, start_spot, end_spot, draw_updates, win, window_mode=window_mode)
                 return path, visited_start.union(visited_end)
@@ -130,18 +131,20 @@ def equalized_bidirectional_a_star(grid_maze: List[List[Spot]], start_spot: Spot
                     draw_spot(win=win, spot=current_spot_end)
 
             if current_spot_end in visited_start:
+                current_spot_end.make_closed()
                 path = __reconstruct_bidirectional_path(current_spot_end, came_from_start, came_from_end)
                 reconstruct_path(path, grid_maze, start_spot, end_spot, draw_updates, win, window_mode=window_mode)
                 return path, visited_start.union(visited_end)
 
             __explore_neighbours(pq_end, current_spot_end, came_from_end, visited_end,
-                                 g_score_end, f_score_end, end_spot, start_spot,
+                                 g_score_end, f_score_end, start_spot, end_spot,
                                  draw_updates, window_mode, win)
 
     return [], visited_start.union(visited_end)
 
 
-def bidirectional_a_star(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwargs) -> Tuple[List[Spot], Set[Spot]]:
+def bidirectional_a_star(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwargs) \
+        -> Tuple[List[Spot], Set[Spot]]:
     """
     Perform the bidirectional A* search algorithm from both the start and end spots simultaneously.
 
@@ -163,7 +166,6 @@ def bidirectional_a_star(grid_maze: List[List[Spot]], start_spot: Spot, end_spot
 
     visited_start = set()
     visited_end = set()
-    path = []
 
     g_score_start = {spot: float("inf") for row in grid_maze for spot in row}
     g_score_end = {spot: float("inf") for row in grid_maze for spot in row}
@@ -215,7 +217,7 @@ def bidirectional_a_star(grid_maze: List[List[Spot]], start_spot: Spot, end_spot
             return path, visited_start.union(visited_end)
 
         __explore_neighbours(pq_end, current_spot_end, came_from_end, visited_end, g_score_end, f_score_end,
-                             end_spot, start_spot, draw_updates, window_mode, win)
+                             start_spot, end_spot, draw_updates, window_mode, win)
 
     return [], visited_start.union(visited_end)
 
@@ -280,7 +282,8 @@ def dijkstra(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kw
     return [], visited
 
 
-def limited_deep_dfs(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwargs) -> Tuple[List[Spot], Set[Spot]]:
+def limited_deep_dfs(grid_maze: List[List[Spot]], start_spot: Spot, end_spot: Spot, **kwargs) \
+        -> Tuple[List[Spot], Set[Spot]]:
     """
     Perform the limited depth-first search (DFS) algorithm with a dynamic depth limit.
 

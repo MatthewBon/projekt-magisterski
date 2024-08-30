@@ -1,0 +1,3 @@
+Algorithm_name,avg_exec_time,avg_searched_cells,avg_path_cost,overall_performance,overall_rank
+DFS,14.8279662124,6832.114,6903.164,100.0,1.0
+DFS_LIM,16.248032091,7807.244,6865.684,80.3,2.0
