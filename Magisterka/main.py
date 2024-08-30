@@ -3,8 +3,7 @@ import shutil
 import csv
 import time
 from logger import ProjectLogger
-from enums.colors import Colors as colors
-from utils import draw_grid, reset_grid, calculate_blocks
+from utils import draw_grid, reset_grid
 import pygame
 from grid import Grid
 from algorithms import (a_star, dijkstra, bfs, dfs, limited_deep_dfs, bidirectional_a_star,
@@ -21,7 +20,7 @@ MAX_SIZE = 640
 
 class AlgorithmAnalyzer(ProjectLogger):
     def __init__(self, rows: int, draw_updates: bool, directory: str, window_mode: bool = True, show_plot: bool = False,
-                 start_end_in_the_same_q: bool = False, display_time: int = 1):
+                 cell_open_percentage: int = 0, display_time: int = 1):
         """
         Initialize the AlgorithmAnalyzer.
 
@@ -31,7 +30,6 @@ class AlgorithmAnalyzer(ProjectLogger):
             directory (str): Directory for storing results.
             window_mode (bool): Flag for window mode.
             show_plot (bool): Flag to show plot after analysis.
-            start_end_in_the_same_q (bool): Flag indicating whether start and end should be in the same quadrant.
             display_time (int): Time to display the result.
         """
         super().__init__()
@@ -41,7 +39,7 @@ class AlgorithmAnalyzer(ProjectLogger):
         self.grid_maze = None
         self.start_spot = None
         self.grid_object = None
-        self.start_end_in_the_same_q = start_end_in_the_same_q
+        self.cell_open_percentage = cell_open_percentage
         self.window_mode = window_mode
         self.display_time = display_time
         self.draw_updates = draw_updates
@@ -58,21 +56,21 @@ class AlgorithmAnalyzer(ProjectLogger):
         self.directory = directory
 
         # Create CSV file inside the directory
-        self.filename = os.path.join(self.directory, f"algorithms_results_{self.rows}_{start_end_in_the_same_q}.csv")
+        self.filename = os.path.join(self.directory, f"algorithms_results_{self.rows}_{cell_open_percentage}.csv")
 
         # Create CSV file and write the header
         with open(self.filename, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["Algorithm_name", "Execution Time (s)", "Searched Cells", "Total Path Cost"])
+            writer.writerow(["Algorithm_name", "Execution Time (ms)", "Searched Cells", "Total Path Cost"])
 
         algorithms = {
             "A*": a_star,
+            "DIJKSTRA": dijkstra,
+            "DFS": dfs,
+            "BFS": bfs,
             "BA*": bidirectional_a_star,
             "EBA*": equalized_bidirectional_a_star,
-            "DIJKSTRA": dijkstra,
-            "DFS_NORMAL": dfs,
             "DFS_LIM": limited_deep_dfs,
-            "BFS": bfs,
         }
 
         self.window_handler(algorithms)
@@ -82,7 +80,7 @@ class AlgorithmAnalyzer(ProjectLogger):
         """
         Generate the maze using the Grid class and initialize start and end spots.
         """
-        self.grid_object = Grid(self.rows, self.gap, self.start_end_in_the_same_q)
+        self.grid_object = Grid(self.rows, self.gap, self.cell_open_percentage)
         self.grid_maze = self.grid_object.grid_maze
         self.start_spot, self.end_spot = self.grid_object.start_spot, self.grid_object.end_spot
 
@@ -107,7 +105,7 @@ class AlgorithmAnalyzer(ProjectLogger):
         if self.window_mode:
             time.sleep(self.display_time)
         reset_grid(self.grid_maze, win, self.window_mode)
-        return end_time, len(visited), path_cost
+        return end_time * 1000, len(visited), path_cost
 
     def window_handler(self, algorithms: Dict[str, Any]) -> None:
         """
@@ -140,14 +138,11 @@ class AlgorithmAnalyzer(ProjectLogger):
             self.generate_maze()
             if self.window_mode:
                 draw_grid(win, self.grid_maze)
-            total_open_cells = calculate_blocks(self.grid_maze, [colors.WHITE_1, colors.WHITE_15, colors.WHITE_15])
             for name, algorithm in algorithms.items():
                 self.logger.debug(f'Executing {name} algorithm...\n')
                 exec_time, searched, path_cost = self.solv_maze(algorithm, win=win)
-                searched_cells_percentage = round(((searched / total_open_cells) * 100), 4)
-                self.logger.debug(f"\n\tExecution_time: {exec_time} s,"
+                self.logger.debug(f"\n\tExecution_time: {exec_time} ms,"
                                   f"\n\tSearched cells : {searched}"
-                                  f"\n\tSearched cells percentage: {searched_cells_percentage} %"
                                   f"\n\tTotal path cost: {path_cost}\n")
                 self.dump_results_into_csv(name, exec_time, searched, path_cost)
 
@@ -157,7 +152,7 @@ class AlgorithmAnalyzer(ProjectLogger):
 
         Args:
             alg_name (str): Name of the algorithm.
-            exec_time (float): Execution time in seconds.
+            exec_time (float): Execution time in ms.
             searched (int): Number of searched cells.
             path_cost (float): Total cost of the path.
         """
@@ -172,8 +167,7 @@ class AlgorithmAnalyzer(ProjectLogger):
         Args:
             rows (int): Number of rows in the grid.
         """
-        analyze_results_and_generate_plot(self.filename, rows, self.logger, self.show_plot,
-                                          self.start_end_in_the_same_q)
+        analyze_results_and_generate_plot(self.filename, rows, self.logger, self.show_plot, self.cell_open_percentage)
 
 
 if __name__ == "__main__":
@@ -182,13 +176,14 @@ if __name__ == "__main__":
     show_plt = False
 
     for size in [MIN_SIZE, MID_SIZE, MAX_SIZE]:
-        # Directory for storing CSV and PNG files
-        directory_name = f"maze_{size}"
-        # Check if the directory exists and remove its contents if it does
-        if os.path.exists(directory_name):
-            shutil.rmtree(directory_name)
-        # Recreate the directory
-        os.makedirs(directory_name)
+        for cell_open_pct in [25, 5, 0]:
+            # Directory for storing CSV and PNG files
+            directory_name = f"size{size}_open_cells_pct{cell_open_pct}"
+            # Check if the directory exists and remove its contents if it does
+            if os.path.exists(directory_name):
+                shutil.rmtree(directory_name)
+            # Recreate the directory
+            os.makedirs(directory_name)
 
-        AlgorithmAnalyzer(size, debug_update_draw, directory_name, display_results, show_plt)
-        AlgorithmAnalyzer(size, debug_update_draw, directory_name, display_results, show_plt, True)
+            AlgorithmAnalyzer(rows=size, draw_updates=debug_update_draw, directory=directory_name,
+                              window_mode=display_results, show_plot=show_plt, cell_open_percentage=cell_open_pct)
